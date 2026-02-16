@@ -1,2 +1,50 @@
-# Space-Simulator
-This project is ideal for those interested in computational physics, real-time graphics, and the chaotic beauty of orbital dynamics. Whether you're simulating a stable solar system or watching a black hole shred a passing star, Stellar-Roche-Sim provides a robust and expandable framework for N-body experimentation.
+# Stellar-Roche-Sim 🪐
+
+A high-performance, real-time 3D N-body gravity simulator built with **C++** and **SDL3**. This project simulates orbital mechanics, celestial collisions, and the **Roche Limit**—the threshold where a celestial body disintegrates due to tidal forces from a more massive object.
+
+
+
+## ✨ Key Features
+
+* **Dynamic Roche Limit Disintegration**: Planets realistically fragment into smaller pieces when they wander too close to massive objects (like black holes), simulating the formation of planetary rings.
+* **OpenMP-Powered Physics**: Utilizes multi-core parallel computing to handle thousands of gravitational interactions ($O(N^2)$ complexity) efficiently.
+* **Momentum-Preserving Mergers**: An inelastic collision system where planets merge upon contact, conserving mass and momentum.
+* **3D Camera Engine**: 
+    * **6-DOF Control**: Fly through your simulation using flight-simulator style controls.
+    * **Perspective Projection**: Custom mathematical mapping from 3D space to 2D screen coordinates.
+    * **Target Tracking**: Lock the camera onto a specific planet to follow its journey through the void.
+* **Numerical Stability**: Uses an optimized Velocity Verlet integration method for reliable physics across various time steps.
+
+## 🛠️ Tech Stack
+
+* **Language**: C++20
+* **Graphics**: SDL3 (Simple DirectMedia Layer)
+* **Parallelism**: OpenMP
+* **Math**: Custom 3D Projection & Newtonian Mechanics
+
+## 🎮 Controls
+
+| Key | Action |
+| :--- | :--- |
+| **W / S** | Move Forward / Backward |
+| **A / D** | Strafe Left / Right |
+| **Space / L-Shift** | Fly Up / Down |
+| **TAB** | Toggle Simulation Pause |
+| **Arrow Up / Down** | Scale Time Step ($dt$) |
+| **O / P** | Adjust Camera Movement Speed |
+| **F** | Lock Camera to Current Target |
+| **ESC** | Release Mouse Cursor |
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+* A C++ compiler with **OpenMP** support (GCC or Clang recommended).
+* **SDL3** development libraries.
+
+### Compilation
+
+Compile using the following command (adjust for your OS):
+
+```bash
+g++ -O3 -fopenmp main.cpp -o stellar_sim -lSDL3
