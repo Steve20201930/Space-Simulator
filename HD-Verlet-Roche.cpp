@@ -2,9 +2,11 @@
 #include <unistd.h>
 #include <vector>
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <cmath>
 #include <algorithm>
 #include <omp.h>
+#include <sstream>
 using namespace std;
 double G=1.0;
 double dt=0.01;
@@ -153,6 +155,40 @@ void merge(vector<particle>& p,int cur,int comp){
         p.push_back({new_name,new_x,new_y,new_z,new_vx,new_vy,new_vz,0,0,0,(p[cur].mass+p[comp].mass),pow(pow(p[cur].radius,3)+pow(p[comp].radius,3),1.0/3.0),c1,c2,c3,255,false});
     }   
 }
+void execute(vector<particle>& p,string command,bool& pause,bool& roche){
+    stringstream ssin(command);
+    int n;
+    ssin>>n;
+    switch(n){
+        case -3:{
+            pause=!pause;
+        }
+        case -4:{
+            roche=!roche;
+        }
+        case -5:{
+            double newrocheK;
+            ssin>>newrocheK;
+            rocheK=newrocheK;
+        }
+        case -6:{
+            double newG;
+            ssin>>newG;
+            G=newG;
+        } 
+    }
+    for(int i=0;i<n;i++){
+        string name;
+        double x,y,z;
+        double vx,vy,vz;
+        double ax,ay,az;
+        double mass;
+        double radius;
+        int c1,c2,c3,c4;
+        ssin>>name>>x>>y>>z>>vx>>vy>>vz>>ax>>ay>>az>>mass>>radius>>c1>>c2>>c3>>c4;
+        p.push_back({name,x,y,z,vx,vy,vz,ax,ay,az,mass,radius,c1,c2,c3,c4,false});
+    }
+}
 // void draw(SDL_Renderer* ren,particle& p,camera& cam){
 //     int sx=worldToScreen(p.x,cam,'x');
 //     int sy=worldToScreen(p.y,cam,'y');
@@ -186,54 +222,16 @@ int main()
     bool roche=false;
     // planet.push_back({"Star",0,0,0,2,0,0,1000,10,245,101,5,255});
     // planet.push_back({"Planet",100,0,0,2,0,0,1000,10,5,197,245,255});
-    again:
-    cout <<"Quantity of your stars: ";
-    int n;
-    cin>>n;
-    switch(n){
-        case -3:{
-            pause=!pause;
-            goto again;
-        }case -4:{
-            roche=!roche;
-            goto again;
-        }case -5:{
-            double newrocheK;
-            cin>>newrocheK;
-            rocheK=newrocheK;
-            goto again;
-        }case -6:{
-            double newG;
-            cin>>newG;
-            G=newG;
-            goto again;
-        }
-    }
-    //Storage
-    newx.resize(n);
-    newy.resize(n);
-    newz.resize(n);
-    newax.resize(n);
-    neway.resize(n);
-    newaz.resize(n);
-    //Storage
-    for(int i=0;i<n;i++){
-        string name;
-        double x,y,z;
-        double vx,vy,vz;
-        double ax,ay,az;
-        double mass;
-        double radius;
-        int c1,c2,c3,c4;
-        cin>>name>>x>>y>>z>>vx>>vy>>vz>>ax>>ay>>az>>mass>>radius>>c1>>c2>>c3>>c4;
-        planet.push_back({name,x,y,z,vx,vy,vz,ax,ay,az,mass,radius,c1,c2,c3,c4,false});
-    }
 
     camera cam={0,0,-200,0,0,90,0,0,0,-1};
     SDL_Window* win=SDL_CreateWindow("Gravity system",width,height,SDL_WINDOW_RESIZABLE);
     SDL_Renderer* ren=SDL_CreateRenderer(win,nullptr);
     SDL_SetWindowPosition(win,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
     SDL_SetWindowRelativeMouseMode(win, true);
+    TTF_Font* font=TTF_OpenFont("Arial.ttf",24);
+    //Initial TTF Font
+    SDL_Color textColor={255,255,255,255};
+    //Initial TTF Font
     const double mousesensitivity=0.1;
     /*Initial movement*/
     double acceleration=0.5;
@@ -245,15 +243,25 @@ int main()
     bool mouse_locked=true;
     int lastX,lastY;
     double proj=150.0;
+    //Inital input
+    bool isTyping=false;
+    string commandbuf="";
+    vector<string> currentbuf;
+    int line=0;
+    int fontsize=24;
+    int initialT=0.7*height;
+    int iniline=initialT;
     while(running){
-        if(roche==true){
-            newx.resize(planet.size());
-            newy.resize(planet.size());
-            newz.resize(planet.size());
-            newax.resize(planet.size());
-            neway.resize(planet.size());
-            newaz.resize(planet.size());
-        }
+        // if(event.type==SDL_EVENT_WINDOW_RESIZED){
+        //     int initialT=0.7*height;
+        //     int iniline=initialT;
+        // }
+        newx.resize(planet.size());
+        newy.resize(planet.size());
+        newz.resize(planet.size());
+        newax.resize(planet.size());
+        neway.resize(planet.size());
+        newaz.resize(planet.size());
         SDL_PollEvent(&event);
         SDL_GetWindowSize(win,&width,&height);
         switch(event.type){
@@ -261,29 +269,44 @@ int main()
                 running=false;
                 break;
             }case SDL_EVENT_KEY_DOWN:{
-                if(event.key.key==SDLK_UP){
-                    dt*=10;
-                }else if(event.key.key==SDLK_DOWN){
-                    dt*=0.1;
-                }else if(event.key.key==SDLK_P&&acceleration<2000.0){
-                    acceleration*=10;
-                }else if(event.key.key==SDLK_O&&acceleration>0.2){
-                    acceleration*=0.1;
-                }else if(event.key.key==SDLK_TAB){
-                    pause=!pause;
-                }else if(event.key.key==SDLK_F&&camera_locked==false&&pause==true){
-                    cam.x=planet[cam.target].x;
-                    cam.y=planet[cam.target].y;
-                    cam.z=planet[cam.target].z;
-                    cam.vx=0;cam.vy=0;cam.vz=0;
-                    camera_locked=true;
-                }else if(event.key.key==SDLK_LEFT&&proj>1.0){
-                    proj-=1.0;
-                }else if(event.key.key==SDLK_RIGHT&&proj<200.0){
-                    proj+=1.0;
-                }else if(event.key.key==SDLK_ESCAPE){
-                    mouse_locked=false;
-                    SDL_SetWindowRelativeMouseMode(win, false);
+                if(isTyping==false){
+                    if(event.key.key==SDLK_UP){
+                        dt*=10;
+                    }else if(event.key.key==SDLK_DOWN){
+                        dt*=0.1;
+                    }else if(event.key.key==SDLK_P&&acceleration<2000.0){
+                        acceleration*=10;
+                    }else if(event.key.key==SDLK_O&&acceleration>0.2){
+                        acceleration*=0.1;
+                    }else if(event.key.key==SDLK_TAB){
+                        pause=!pause;
+                    }else if(event.key.key==SDLK_F&&camera_locked==false&&pause==true){
+                        cam.x=planet[cam.target].x;
+                        cam.y=planet[cam.target].y;
+                        cam.z=planet[cam.target].z;
+                        cam.vx=0;cam.vy=0;cam.vz=0;
+                        camera_locked=true;
+                    }else if(event.key.key==SDLK_LEFT&&proj>1.0){
+                        proj-=1.0;
+                    }else if(event.key.key==SDLK_RIGHT&&proj<200.0){
+                        proj+=1.0;
+                    }else if(event.key.key==SDLK_T){
+                        isTyping=true;
+                        commandbuf="";
+                        currentbuf.clear();
+                        line=0;
+                        currentbuf.push_back(">");
+                        SDL_StartTextInput(win);
+                    }
+                }
+                if(event.key.key==SDLK_ESCAPE){
+                    if(isTyping==true){
+                        isTyping=false;
+                        SDL_StopTextInput(win);
+                    }else{
+                        mouse_locked=false;
+                        SDL_SetWindowRelativeMouseMode(win, false);
+                    }
                 }
                 break;
             }
@@ -322,36 +345,77 @@ int main()
         double uz=cos(rad_yaw)*sin(-rad_pitch);
 
         //escape locked planet
-        if (camera_locked==true&&(keystate[SDL_SCANCODE_W] || keystate[SDL_SCANCODE_A] || keystate[SDL_SCANCODE_S] || keystate[SDL_SCANCODE_D] || keystate[SDL_SCANCODE_SPACE] || keystate[SDL_SCANCODE_LSHIFT])){
-            camera_locked=false;
-        }
-        //escape locked planet
-        if(keystate[SDL_SCANCODE_W]){
-            cam.vx+=fx*acceleration;
-            cam.vy+=fy*acceleration;
-            cam.vz+=fz*acceleration;
-        }if(keystate[SDL_SCANCODE_S]){
-            cam.vx-=fx*acceleration;
-            cam.vy-=fy*acceleration;
-            cam.vz-=fz*acceleration;
-        }if(keystate[SDL_SCANCODE_A]){
-            cam.vx -= rx * acceleration;
-            cam.vz -= rz * acceleration;
-        }if(keystate[SDL_SCANCODE_D]){
-            cam.vx += rx * acceleration;
-            cam.vz += rz * acceleration;
-        }if (keystate[SDL_SCANCODE_SPACE]) {
-            cam.vx += ux * acceleration;
-            cam.vy += uy * acceleration;
-            cam.vz += uz * acceleration;
-        }if (keystate[SDL_SCANCODE_LSHIFT]) {
-            cam.vx -= ux * acceleration;
-            cam.vy -= uy * acceleration;
-            cam.vz -= uz * acceleration;
+        if(isTyping==false){
+            if (camera_locked==true&&(keystate[SDL_SCANCODE_W] || keystate[SDL_SCANCODE_A] || keystate[SDL_SCANCODE_S] || keystate[SDL_SCANCODE_D] || keystate[SDL_SCANCODE_SPACE] || keystate[SDL_SCANCODE_LSHIFT])){
+                camera_locked=false;
+            }
+            //escape locked planet
+            if(keystate[SDL_SCANCODE_W]){
+                cam.vx+=fx*acceleration;
+                cam.vy+=fy*acceleration;
+                cam.vz+=fz*acceleration;
+            }if(keystate[SDL_SCANCODE_S]){
+                cam.vx-=fx*acceleration;
+                cam.vy-=fy*acceleration;
+                cam.vz-=fz*acceleration;
+            }if(keystate[SDL_SCANCODE_A]){
+                cam.vx -= rx * acceleration;
+                cam.vz -= rz * acceleration;
+            }if(keystate[SDL_SCANCODE_D]){
+                cam.vx += rx * acceleration;
+                cam.vz += rz * acceleration;
+            }if (keystate[SDL_SCANCODE_SPACE]) {
+                cam.vx += ux * acceleration;
+                cam.vy += uy * acceleration;
+                cam.vz += uz * acceleration;
+            }if (keystate[SDL_SCANCODE_LSHIFT]) {
+                cam.vx -= ux * acceleration;
+                cam.vy -= uy * acceleration;
+                cam.vz -= uz * acceleration;
+            }
         }
         cam.vx *= friction; cam.vy *= friction; cam.vz *= friction;
         cam.x += cam.vx; cam.y += cam.vy; cam.z += cam.vz;
-        /*COMPUTE MOVEMENT*/
+        /*Console Input*/
+        if(isTyping==true){
+            cout <<commandbuf<<endl;
+            if(event.type==SDL_EVENT_TEXT_INPUT){
+                commandbuf+=event.text.text;
+                currentbuf[line]+=event.text.text;
+                cout <<commandbuf<<endl;
+            }else if(event.type==SDL_EVENT_KEY_DOWN){
+                if(event.key.key==SDLK_BACKSPACE&&currentbuf[line].size()>1){
+                    commandbuf.pop_back();
+                    currentbuf[line].pop_back();
+                }
+                if((SDL_KMOD_LSHIFT&event.key.mod)&&event.key.key==SDLK_RETURN){
+                    execute(planet,commandbuf,pause,roche);
+                    isTyping=false;
+                    SDL_StopTextInput(win);
+                    continue;
+                }else if(event.key.key==SDLK_RETURN){
+                    if(initialT+line*0.5*fontsize>height-fontsize*0.5){
+                        iniline-=(0.5*fontsize);
+                    }
+                    line+=1;
+                    commandbuf+=" ";
+                    currentbuf.push_back(">");
+                }
+                if(SDL_KMOD_GUI&&event.key.key==SDLK_V){
+                    if(SDL_HasClipboardText()){
+                        char* text=SDL_GetClipboardText();
+                        commandbuf+=text;
+                        currentbuf[line]+=text;
+                        SDL_free(text);
+                    }
+                }
+                
+            }
+            SDL_SetRenderDrawColor(ren,255,255,255,255);
+            for(int i=0;i<=line;i++){
+                SDL_RenderDebugText(ren,50,iniline+i*0.5*fontsize,currentbuf[i].c_str());
+            }
+        }
         //COMPUTE POSITION t+dt
         if(pause==false){
             for(int cur=0;cur<planet.size();cur++){
