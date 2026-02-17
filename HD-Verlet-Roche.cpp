@@ -2,11 +2,11 @@
 #include <unistd.h>
 #include <vector>
 #include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL_ttf.h>
 #include <cmath>
 #include <algorithm>
 #include <omp.h>
 #include <sstream>
+#include <fstream>
 using namespace std;
 double G=1.0;
 double dt=0.01;
@@ -15,6 +15,7 @@ int width=1512;
 int height=900;
 double rocheK=1.26;
 int disintegrate_num=1;
+double disintegrate_mass=1.0;
 struct particle{
     string name;
     double x,y,z;
@@ -90,29 +91,37 @@ int findFocus(vector<particle>& planet,camera& cam){
     }
     return best;
 }
-void disintegrate4(vector<particle>& p,vector<particle>& roc,double rocheR,double r,int cur){
-    if(p[cur].radius<=disintegrate_num)return;
-    const double K=2.0;
-    int genp=(int)(rocheR/r)*K;
-    if(genp>10)genp=10;
-    //Original 
+void disintegrate4(vector<particle>& p,vector<particle>& roc,double rocheR,double r,int cur,double dx,double dy,double dz){
+    if(p[cur].radius<=disintegrate_num||p[cur].mass<=disintegrate_mass)return;
+    const double K=1.0;
+    int genp=(int)K*(rocheR/r)*dt;
+    // double expectgen=K*(rocheR-r)*dt;
+    // int genp=(int)(-r+400);
+    // int genp=(int)expectgen;
+    //Original
     double p0x=p[cur].mass*p[cur].vx;
     double p0y=p[cur].mass*p[cur].vy;
     double p0z=p[cur].mass*p[cur].vz;
     double m0=p[cur].mass;
-    double r0=p[cur].mass;
+    double r0=p[cur].radius;
     //Pieces
     double frag_r=disintegrate_num;
     double frag_m=p[cur].mass*pow(frag_r/p[cur].radius,3);
 
     double pfragx=0,pfragy=0,pfragz=0;
     for(int i=0;i<genp;i++){
+        double uni=sqrt(dx*dx+dy*dy+dz*dz);
+        double udx=dx/uni;
+        double udy=dy/uni;
+        double udz=dz/uni;
+
         double ux=2.0*rand()/RAND_MAX-1.0; //[-1.0,1.0]
         double uy=2.0*rand()/RAND_MAX-1.0; //[-1.0,1.0]
         double uz=2.0*rand()/RAND_MAX-1.0; //[-1.0,1.0]
         double len=sqrt(ux*ux+uy*uy+uz*uz);
         if(len<1e-6)continue; //Vector 0
         ux/=len; uy/=len; uz/=len;
+        ux+=udx; uy+=udy; uz+=udz;
 
         double newx=p[cur].x+p[cur].radius*ux;
         double newy=p[cur].y+p[cur].radius*uy;
@@ -153,7 +162,7 @@ void merge(vector<particle>& p,int cur,int comp){
     #pragma omp critical
     {
         p.push_back({new_name,new_x,new_y,new_z,new_vx,new_vy,new_vz,0,0,0,(p[cur].mass+p[comp].mass),pow(pow(p[cur].radius,3)+pow(p[comp].radius,3),1.0/3.0),c1,c2,c3,255,false});
-    }   
+    }
 }
 void execute(vector<particle>& p,string command,bool& pause,bool& roche){
     stringstream ssin(command);
@@ -162,20 +171,21 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche){
     switch(n){
         case -3:{
             pause=!pause;
-        }
-        case -4:{
+            break;
+        }case -4:{
             roche=!roche;
-        }
-        case -5:{
+            break;
+        }case -5:{
             double newrocheK;
             ssin>>newrocheK;
             rocheK=newrocheK;
-        }
-        case -6:{
+            break;
+        }case -6:{
             double newG;
             ssin>>newG;
             G=newG;
-        } 
+            break;
+        }
     }
     for(int i=0;i<n;i++){
         string name;
@@ -188,6 +198,19 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche){
         ssin>>name>>x>>y>>z>>vx>>vy>>vz>>ax>>ay>>az>>mass>>radius>>c1>>c2>>c3>>c4;
         p.push_back({name,x,y,z,vx,vy,vz,ax,ay,az,mass,radius,c1,c2,c3,c4,false});
     }
+}
+void save(vector<particle>& p){
+    ofstream file("Running_output.txt");
+    file<<p.size()<<endl;
+    for(int i=0;i<p.size();i++){
+        file<<p[i].name<<' '
+            <<p[i].x<<' '<<p[i].y<<' '<<p[i].z<<' '
+            <<p[i].vx<<' '<<p[i].vy<<' '<<p[i].vz<<' '
+            <<p[i].ax<<' '<<p[i].ay<<' '<<p[i].az<<' '
+            <<p[i].mass<<' '<<p[i].radius<<' '
+            <<p[i].c1<<' '<<p[i].c2<<' '<<p[i].c3<<' '<<p[i].c4<<endl;
+    }
+    file.close();
 }
 // void draw(SDL_Renderer* ren,particle& p,camera& cam){
 //     int sx=worldToScreen(p.x,cam,'x');
@@ -228,7 +251,6 @@ int main()
     SDL_Renderer* ren=SDL_CreateRenderer(win,nullptr);
     SDL_SetWindowPosition(win,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
     SDL_SetWindowRelativeMouseMode(win, true);
-    TTF_Font* font=TTF_OpenFont("Arial.ttf",24);
     //Initial TTF Font
     SDL_Color textColor={255,255,255,255};
     //Initial TTF Font
@@ -297,6 +319,9 @@ int main()
                         line=0;
                         currentbuf.push_back(">");
                         SDL_StartTextInput(win);
+                    }else if(event.key.key==SDLK_0){
+                        save(planet);
+                        cout <<"SUCCESS SAVED"<<endl;
                     }
                 }
                 if(event.key.key==SDLK_ESCAPE){
@@ -378,17 +403,15 @@ int main()
         cam.x += cam.vx; cam.y += cam.vy; cam.z += cam.vz;
         /*Console Input*/
         if(isTyping==true){
-            cout <<commandbuf<<endl;
             if(event.type==SDL_EVENT_TEXT_INPUT){
                 commandbuf+=event.text.text;
                 currentbuf[line]+=event.text.text;
-                cout <<commandbuf<<endl;
             }else if(event.type==SDL_EVENT_KEY_DOWN){
                 if(event.key.key==SDLK_BACKSPACE&&currentbuf[line].size()>1){
                     commandbuf.pop_back();
                     currentbuf[line].pop_back();
                 }
-                if((SDL_KMOD_LSHIFT&event.key.mod)&&event.key.key==SDLK_RETURN){
+                if((SDL_KMOD_RSHIFT&event.key.mod)&&event.key.key==SDLK_RETURN){
                     execute(planet,commandbuf,pause,roche);
                     isTyping=false;
                     SDL_StopTextInput(win);
@@ -442,10 +465,10 @@ int main()
                     newaz[cur]+=F*dz/(r*planet[cur].mass);
 
                     //Compute roche limit
-                     if(roche==true&&planet[cur].radius>disintegrate_num){
+                    if(roche==true&&planet[cur].radius>disintegrate_num&&planet[comp].mass>planet[cur].mass*10){
                         double rocheR=rocheK*planet[cur].radius*pow(2*planet[comp].mass/planet[cur].mass,1.0/3.0);
                         if(r>rocheR)continue;
-                        disintegrate4(planet,roc,rocheR,r,cur);
+                        disintegrate4(planet,roc,rocheR,r,cur,dx,dy,dz);
                     }
                     //Compute merge limit
                     if(roche==true&&planet[cur].merged==false&&planet[comp].merged==false){
