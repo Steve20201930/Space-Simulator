@@ -43,6 +43,9 @@ A high-performance, real-time 3D N-body gravity simulator built with **C++** and
 * **SDL3** development libraries.
 
 ### Compilation
+<img width="1624" height="997" alt="Screenshot 2026-02-17 at 12 09 58" src="https://github.com/user-attachments/assets/8ad15031-ec47-491f-b5df-c9263e5ecdfd" />
+<img width="1624" height="997" alt="Screenshot 2026-02-17 at 12 10 58" src="https://github.com/user-attachments/assets/6ab85ee2-23a1-42f4-9470-2b422f1450b2" />
+
 
 Compile using the following command (adjust for your OS):
 
