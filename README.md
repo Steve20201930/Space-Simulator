@@ -1,227 +1,309 @@
-# 🌌 3D Gravity System with Roche Limit  
-### 基于 SDL3 + OpenMP 的三维引力模拟系统
+# 🌌 3D N-Body Gravity Engine  
+## With Roche Limit & Parallel Acceleration  
+### 三维 N 体引力引擎（含洛希极限与并行加速）
 
 ---
 
-## 📖 Introduction | 项目介绍
+# 🔬 Abstract | 摘要
 
 ### English
 
-This project is a real-time **3D N-body gravity simulator** written in C++.  
-It uses:
+This project implements a real-time three-dimensional N-body gravity simulation engine written in C++.  
+The system models Newtonian gravitational interaction, tidal disintegration based on Roche limit theory, and momentum-conserving merging behavior.
 
-- SDL (for rendering and input handling)
-- OpenMP (for parallel acceleration)
+The simulation integrates physics computation, OpenMP parallel acceleration, and real-time rendering using SDL.
 
-The simulator includes:
+It serves as:
 
-- Newtonian gravity
-- Roche limit tidal disintegration
-- Planet merging
-- Free 3D camera system
-- Interactive console command input
-- Save system
-
-It is designed as a physics sandbox and experimental gravity engine.
+- A physics sandbox
+- A computational astrophysics experiment
+- A rendering & simulation engine prototype
 
 ---
 
 ### 中文
 
-这是一个使用 C++ 编写的实时 **三维 N 体引力模拟系统**。
+本项目实现了一个基于 C++ 的实时三维 N 体引力模拟引擎。  
+系统包含牛顿万有引力模型、基于洛希极限的潮汐解体机制，以及动量守恒的行星合并机制。
 
-项目使用：
+本项目融合了：
 
-- SDL（图形渲染与输入系统）
-- OpenMP（并行计算加速）
-
-系统支持：
-
-- 牛顿万有引力
-- 洛希极限潮汐解体
-- 行星合并
-- 自由三维摄像机
-- 内置控制台命令输入
-- 状态保存功能
-
-这是一个偏物理模拟方向的引力沙盒系统。
-
----
-
-# ✨ Features | 功能特性
-
-### English
-
-- Real-time N-body gravity simulation
-- Roche limit tidal fragmentation
-- Planet merging with momentum conservation
-- OpenMP parallel acceleration
-- 3D camera movement
-- Perspective projection rendering
-- Depth sorting
-- Save simulation state to file
-- Built-in command console
-
----
-
-### 中文
-
-- 实时 N 体引力模拟
-- 洛希极限解体机制
-- 动量守恒的行星合并
+- 数值物理计算
 - OpenMP 并行加速
-- 三维摄像机控制
-- 透视投影渲染
-- 深度排序绘制
-- 状态保存功能
-- 内置命令控制台
+- SDL 实时图形渲染
+
+可作为：
+
+- 物理沙盒系统
+- 计算天体物理实验平台
+- 图形与模拟引擎原型
 
 ---
 
-# 🧮 Physics Model | 物理模型
+# 🎥 Demo | 演示效果
 
-## Gravity | 万有引力
+## Rendering Example
 
-Newton’s law of gravitation:
-
-F = G * m1 * m2 / r^2
-
-
-Velocity Verlet integration is used for motion updates.
-
-使用 Velocity Verlet 方法进行时间积分更新。
+<img width="1624" height="997" alt="Screenshot 2026-02-17 at 16 41 47" src="https://github.com/user-attachments/assets/dbd03f8b-b3a5-4322-9ba5-3f3d4463f8a2" />
+<img width="1624" height="997" alt="Screenshot 2026-02-17 at 16 42 40" src="https://github.com/user-attachments/assets/e75635b7-5c24-44ef-ada3-671115fa6140" />
+<img width="1624" height="997" alt="Screenshot 2026-02-17 at 12 10 58" src="https://github.com/user-attachments/assets/143990d6-d0a4-49f9-a68c-88c4c0148dc0" />
 
 ---
 
-## Roche Limit | 洛希极限
+# ✨ Core Features | 核心功能
 
-Roche limit formula used:
+### Simulation
 
-R_roche = k * R * (2M/m)^(1/3)
+- Real-time N-body gravitational interaction
+- Velocity Verlet integration
+- Roche limit tidal fragmentation
+- Momentum & mass conserving merge system
+- Dynamic particle generation
 
+### Rendering
 
-When a body enters the Roche region:
+- 3D camera system (yaw/pitch)
+- Perspective projection
+- Depth sorting
+- Real-time rendering pipeline
 
-- It may fragment into smaller particles
-- Total momentum is conserved
-- Mass gradually decreases
+### System
 
-当进入洛希区域时：
-
-- 行星会碎裂
-- 动量守恒
-- 质量逐渐损失
-
----
-
-## Merging | 合并机制
-
-If two bodies overlap:
-
-- Mass is conserved
-- Momentum is conserved
-- Radius recalculated from volume conservation
-
-当两个天体接触时：
-
-- 质量守恒
-- 动量守恒
-- 半径按体积守恒重新计算
+- OpenMP parallel force calculation
+- Console command execution
+- State save system
+- Adjustable physics parameters
 
 ---
 
-# 🎮 Controls | 操作方式
+# 🧮 Physical Model | 物理模型
 
-## Camera Movement | 摄像机控制
+## 1️⃣ Newtonian Gravity
 
-| Key | Function |
-|------|----------|
-| W / S | Move forward / backward |
-| A / D | Move left / right |
-| SPACE | Move up |
-| LSHIFT | Move down |
-| Mouse | Look around |
+\[
+F = G \frac{m_1 m_2}{r^2}
+\]
+
+Acceleration:
+
+\[
+a = \frac{F}{m}
+\]
+
+Integration method:
+
+Velocity Verlet scheme.
+
+---
+
+## 2️⃣ Roche Limit Model
+
+\[
+R_{roche} = k R \left(\frac{2M}{m}\right)^{1/3}
+\]
+
+When:
+
+\[
+r < R_{roche}
+\]
+
+The body undergoes fragmentation.
+
+Fragment properties:
+
+- Directional dispersion
+- Partial escape velocity
+- Momentum conservation
+
+---
+
+## 3️⃣ Collision & Merging
+
+When:
+
+\[
+r < R_1 + R_2
+\]
+
+New body:
+
+- Mass conserved
+- Momentum conserved
+- Volume conserved
+
+Radius:
+
+\[
+R = (R_1^3 + R_2^3)^{1/3}
+\]
+
+---
+
+# 📊 Algorithm Complexity | 算法复杂度分析
+
+Let N be number of particles.
+
+### Force Computation
+
+Double loop:
+
+\[
+O(N^2)
+\]
+
+Parallelized using OpenMP.
+
+---
+
+### Sorting (Depth Rendering)
+
+\[
+O(N \log N)
+\]
+
+---
+
+### Fragmentation
+
+Worst case additional:
+
+\[
+O(N)
+\]
+
+---
+
+### Total Per Frame Complexity
+
+\[
+O(N^2)
+\]
+
+Future optimization suggestion:
+
+- Barnes-Hut Tree → O(N log N)
+- GPU acceleration
+- Spatial partitioning
+
+---
+
+# ⚙ Controls | 操作方式
+
+## Camera
+
+| Key | Action |
+|------|--------|
+| W/S | Forward / Backward |
+| A/D | Left / Right |
+| SPACE | Up |
+| LSHIFT | Down |
+| Mouse | Look |
 | TAB | Pause |
-| F | Lock camera to selected body |
-| LEFT / RIGHT | Adjust projection |
+| F | Lock camera |
+| ← / → | Adjust projection |
 
 ---
 
-## Console Mode | 控制台模式
+## Console
 
 Press:
 
+```
 T
+```
 
+Execute:
 
-To enter console mode.
-
-Press:
-
+```
 Shift + Enter
-
-
-To execute command.
+```
 
 ---
 
-## Save State | 保存状态
+# 🏗 System Architecture | 系统架构
 
-Press:
+```
+Particle System
+    ├── Position Update
+    ├── Force Calculation (OpenMP)
+    ├── Roche Check
+    ├── Merge Check
+    └── State Update
 
-0
-
-
-Output file:
-
-
-Running_output.txt
-
+Rendering Pipeline
+    ├── Camera Transform
+    ├── Projection
+    ├── Depth Sort
+    └── Draw Circle Rasterization
+```
 
 ---
 
-# ⚙ Build Instructions | 编译方式
+# 🧠 Scientific Perspective | 科研视角说明
+
+This engine demonstrates:
+
+- Emergent behavior in multi-body gravitational systems
+- Non-linear instability in tidal interactions
+- Momentum conservation under discrete fragmentation
+- Real-time computational astrophysics modeling
+
+Potential extensions:
+
+- Softening length modeling
+- Relativistic correction
+- Accretion disk simulation
+- Multi-star system stability study
+
+---
+
+# 🚀 Build Instructions | 编译方式
 
 ## macOS / Linux
 
+```
 g++ main.cpp -o gravity -lSDL3 -fopenmp
-
+```
 
 ## Windows (MinGW)
 
+```
 g++ main.cpp -o gravity.exe -lSDL3 -fopenmp
+```
 
-
-Make sure SDL3 development libraries are installed.
+Make sure SDL3 development library is installed.
 
 ---
 
-# 📁 Project Structure | 项目结构
+# 📁 Project Structure
 
+```
 main.cpp
 README.md
-Running_output.txt (generated)
-
+demo/
+Running_output.txt
+```
 
 ---
 
-# 🚀 Future Improvements | 未来改进方向
+# 🔭 Future Work | 未来方向
 
-- Barnes-Hut optimization (O(n log n))
-- GPU acceleration
-- Better collision physics
-- Real texture rendering
-- UI overlay system
-- Performance profiling tools
+- Barnes-Hut optimization
+- CUDA / Metal GPU acceleration
+- True 3D sphere rendering
+- GUI overlay
+- Performance benchmarking
+- Large-scale simulation support
 
 ---
 
 # 📜 License
 
-This project is open for learning and personal research use.
+Educational & Research Use.
 
 ---
 
 # 👨‍💻 Author
 
-Developed as a personal physics & rendering experiment.
+Independent physics engine experiment project.
