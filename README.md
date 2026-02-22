@@ -1,309 +1,135 @@
-# 🌌 3D N-Body Gravity Engine  
-## With Roche Limit & Parallel Acceleration  
-### 三维 N 体引力引擎（含洛希极限与并行加速）
+# Gravity-System & Starship Simulator 🚀
 
----
+An ultra-hardcore, high-performance N-Body gravity simulation engine built with **SDL3** and **OpenMP**. It features a realistic spacecraft flight model based on SpaceX's **Starship** specifications, allowing you to simulate interplanetary missions from Earth to Mars.
 
-# 🔬 Abstract | 摘要
+## 🌟 Key Features
 
-### English
+* **N-Body Physics Engine**: Real-time gravitational interaction between all celestial bodies using multi-threaded OpenMP acceleration.
+* **Starship Flight Model**:
+    * Parameters modeled after **SpaceX Raptor** engines (Thrust, Mass Flow, Fuel Consumption).
+    * Dynamic Mass calculation: Your ship gets lighter and accelerates faster as fuel is depleted.
+* **Orbital Projection System**: Real-time trajectory prediction lines to help you visualize orbital paths and plan fuel-efficient maneuvers.
+* **Astrophysical Phenomena**:
+    * **Roche Limit Simulation**: Celestial bodies fragment and disintegrate when they cross the Roche limit of a larger mass.
+    * **Elastic Merging**: Conservation of momentum and mass when planets collide.
+* **Advanced Camera System**: 6-DOF movement with Target Locking and Synchronous Orbit tracking.
 
-This project implements a real-time three-dimensional N-body gravity simulation engine written in C++.  
-The system models Newtonian gravitational interaction, tidal disintegration based on Roche limit theory, and momentum-conserving merging behavior.
+## 🛠 Controls
 
-The simulation integrates physics computation, OpenMP parallel acceleration, and real-time rendering using SDL.
-
-It serves as:
-
-- A physics sandbox
-- A computational astrophysics experiment
-- A rendering & simulation engine prototype
-
----
-
-### 中文
-
-本项目实现了一个基于 C++ 的实时三维 N 体引力模拟引擎。  
-系统包含牛顿万有引力模型、基于洛希极限的潮汐解体机制，以及动量守恒的行星合并机制。
-
-本项目融合了：
-
-- 数值物理计算
-- OpenMP 并行加速
-- SDL 实时图形渲染
-
-可作为：
-
-- 物理沙盒系统
-- 计算天体物理实验平台
-- 图形与模拟引擎原型
-
----
-
-# 🎥 Demo | 演示效果
-
-## Rendering Example
-
-<img width="1624" height="997" alt="Screenshot 2026-02-17 at 16 41 47" src="https://github.com/user-attachments/assets/dbd03f8b-b3a5-4322-9ba5-3f3d4463f8a2" />
-<img width="1624" height="997" alt="Screenshot 2026-02-17 at 16 42 40" src="https://github.com/user-attachments/assets/e75635b7-5c24-44ef-ada3-671115fa6140" />
-<img width="1624" height="997" alt="Screenshot 2026-02-17 at 12 10 58" src="https://github.com/user-attachments/assets/143990d6-d0a4-49f9-a68c-88c4c0148dc0" />
-
----
-
-# ✨ Core Features | 核心功能
-
-### Simulation
-
-- Real-time N-body gravitational interaction
-- Velocity Verlet integration
-- Roche limit tidal fragmentation
-- Momentum & mass conserving merge system
-- Dynamic particle generation
-
-### Rendering
-
-- 3D camera system (yaw/pitch)
-- Perspective projection
-- Depth sorting
-- Real-time rendering pipeline
-
-### System
-
-- OpenMP parallel force calculation
-- Console command execution
-- State save system
-- Adjustable physics parameters
-
----
-
-# 🧮 Physical Model | 物理模型
-
-## 1️⃣ Newtonian Gravity
-
-\[
-F = G \frac{m_1 m_2}{r^2}
-\]
-
-Acceleration:
-
-\[
-a = \frac{F}{m}
-\]
-
-Integration method:
-
-Velocity Verlet scheme.
-
----
-
-## 2️⃣ Roche Limit Model
-
-\[
-R_{roche} = k R \left(\frac{2M}{m}\right)^{1/3}
-\]
-
-When:
-
-\[
-r < R_{roche}
-\]
-
-The body undergoes fragmentation.
-
-Fragment properties:
-
-- Directional dispersion
-- Partial escape velocity
-- Momentum conservation
-
----
-
-## 3️⃣ Collision & Merging
-
-When:
-
-\[
-r < R_1 + R_2
-\]
-
-New body:
-
-- Mass conserved
-- Momentum conserved
-- Volume conserved
-
-Radius:
-
-\[
-R = (R_1^3 + R_2^3)^{1/3}
-\]
-
----
-
-# 📊 Algorithm Complexity | 算法复杂度分析
-
-Let N be number of particles.
-
-### Force Computation
-
-Double loop:
-
-\[
-O(N^2)
-\]
-
-Parallelized using OpenMP.
-
----
-
-### Sorting (Depth Rendering)
-
-\[
-O(N \log N)
-\]
-
----
-
-### Fragmentation
-
-Worst case additional:
-
-\[
-O(N)
-\]
-
----
-
-### Total Per Frame Complexity
-
-\[
-O(N^2)
-\]
-
-Future optimization suggestion:
-
-- Barnes-Hut Tree → O(N log N)
-- GPU acceleration
-- Spatial partitioning
-
----
-
-# ⚙ Controls | 操作方式
-
-## Camera
-
+### General Controls
 | Key | Action |
-|------|--------|
-| W/S | Forward / Backward |
-| A/D | Left / Right |
-| SPACE | Up |
-| LSHIFT | Down |
-| Mouse | Look |
-| TAB | Pause |
-| F | Lock camera |
-| ← / → | Adjust projection |
+| :--- | :--- |
+| `T` | Open Command Console |
+| `P` / `O` | Increase / Decrease Camera Speed |
+| `UP` / `DOWN` | Speed up / Slow down Simulation Time (dt) |
+| `TAB` | Pause / Resume Physics |
+| `ESC` | Release Mouse Cursor |
 
----
+### SpaceShip Pilot Mode
+| Key | Action |
+| :--- | :--- |
+| `Left Shift` | Throttle Up |
+| `Left Ctrl` | Throttle Down |
+| `W / S` | Pitch Down / Up |
+| `A / D` | Yaw Left / Right |
+| `Z` | MAX Throttle (100%) |
+| `X` | Cutoff Thrust (0%) |
+| `L` | Toggle Trajectory Prediction Line |
 
-## Console
+## 💻 Console Commands
 
-Press:
+Press `T` to enter the console and type:
+* `spaceshipmode` : Toggle between Free Cam and Ship Pilot mode.
+* `sel solar` : Instant load of the Solar System (Sun to Neptune + Moon).
+* `target [Name]` : Set a celestial body as your navigation target.
+* `goto [Name]` : Teleport camera to a specific planet.
+* `newg [Value]` : Modify the Universal Gravitational Constant $G$.
+* `roche` : Toggle the Roche Limit disintegration effect.
+* `save` : Save the current universe state to `running.txt`.
 
+## 🚀 Physics Specs (Starship Reference)
+
+- **Dry Mass**: 120,000 kg
+- **Single Raptor Thrust**: 2,745,000 N
+- **Propellant Consumption**: 0.1 kg/s (per engine)(Real engine for 650 kg/s)
+- **Engine Configuration**: 9x Raptor Engines
+- **Theoretical $\Delta v$**: Calculated via the Tsiolkovsky Rocket Equation.
+
+
+
+## 🔨 Build Instructions
+
+### Dependencies
+- **SDL3**: Latest development libraries.
+- **Compiler**: GCC/Clang with OpenMP support.
+- **C++ Standard**: C++17 or higher.
+
+### Compile
+```bash
+g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 ```
-T
-```
+# Gravity-System & SpaceShip Simulator 🚀
 
-Execute:
+这是一个基于 **SDL3** 和 **OpenMP** 开发的高性能 N-Body 万有引力物理仿真系统。它不仅能模拟星系演化、罗氏极限（Roche Limit）下的天体解体，还内置了一个高度还原 SpaceX **Starship（星舰）** 参数的飞船驾驶模拟器。
 
-```
-Shift + Enter
-```
+## 🌟 核心特性
 
----
+* **高性能 N-Body 模拟**：使用 OpenMP 多线程加速物理计算，支持数千个天体同时运行。
+* **硬核飞船物理**：
+    * 参考 SpaceX Raptor 发动机参数（推力、比冲、燃料消耗）。
+    * 实时计算推重比（TWR）和质量变化。
+* **轨道预测系统**：内置实时轨迹预测线，帮助你精准规划霍曼转移轨道（Hohmann Transfer）。
+* **天体物理现象**：
+    * **罗氏极限**：当卫星过近时会发生物理粉碎。
+    * **天体合并**：支持完全弹性的质量与动量合并。
+* **全 3D 摄像机**：自由视角、目标锁定以及同步轨道追踪模式。
 
-# 🏗 System Architecture | 系统架构
+## 🛠 控制说明
 
-```
-Particle System
-    ├── Position Update
-    ├── Force Calculation (OpenMP)
-    ├── Roche Check
-    ├── Merge Check
-    └── State Update
+### 基础控制
+| 按键 | 功能 |
+| :--- | :--- |
+| `T` | 开启控制台输入模式 |
+| `P` / `O` | 加速 / 减速 摄像机移动速度 |
+| `UP` / `DOWN` | 加速 / 减速 物理模拟步长 (dt) |
+| `TAB` | 暂停 / 恢复 模拟 |
+| `ESC` | 释放鼠标捕捉 |
 
-Rendering Pipeline
-    ├── Camera Transform
-    ├── Projection
-    ├── Depth Sort
-    └── Draw Circle Rasterization
-```
+### 飞船驾驶 (SpaceShip Mode)
+| 按键 | 功能 |
+| :--- | :--- |
+| `Left Shift` | 增加油门 (Throttle Up) |
+| `Left Ctrl` | 减少油门 (Throttle Down) |
+| `W/A/S/D` | 调整飞船 俯仰 (Pitch) 和 偏航 (Yaw) |
+| `Z` | 一键全开油门 (MAX Thrust) |
+| `X` | 立即切断动力 (Cutoff) |
+| `L` | 开启/关闭 轨迹预测线 (Trajectory) |
 
----
+## 💻 控制台指令 (Console Commands)
 
-# 🧠 Scientific Perspective | 科研视角说明
+在按下 `T` 后可以输入以下指令：
+* `spaceshipmode` : 进入/退出飞船模式。
+* `sel solar` : 快速加载太阳系预设（包含八大行星与月球）。
+* `target [Name]` : 锁定特定天体为导航目标。
+* `goto [Name]` : 瞬间移动摄像机至该天体。
+* `newg [Value]` : 修改万有引力常数 $G$。
+* `roche` : 开启/关闭罗氏极限粉碎效果。
+* `save` : 保存当前系统状态到本地。
 
-This engine demonstrates:
+## 🚀 物理参数参考 (SpaceX Starship)
 
-- Emergent behavior in multi-body gravitational systems
-- Non-linear instability in tidal interactions
-- Momentum conservation under discrete fragmentation
-- Real-time computational astrophysics modeling
+模拟器默认参考参数：
+- **干重**: 120,000 kg
+- **单台猛禽发动机推力**: 2,745,000 N
+- **燃料消耗**: 0.1 kg/s 每台(实际为650kg/s)
+- **配置**: 9 台真空/海平面引擎组合
 
-Potential extensions:
+## 🔨 编译要求
 
-- Softening length modeling
-- Relativistic correction
-- Accretion disk simulation
-- Multi-star system stability study
+1.  **SDL3**: 确保系统中已安装最新的 SDL3 开发库。
+2.  **OpenMP**: 编译器需支持 `-fopenmp`。
+3.  **C++17** 或更高版本。
 
----
-
-# 🚀 Build Instructions | 编译方式
-
-## macOS / Linux
-
-```
-g++ main.cpp -o gravity -lSDL3 -fopenmp
-```
-
-## Windows (MinGW)
-
-```
-g++ main.cpp -o gravity.exe -lSDL3 -fopenmp
-```
-
-Make sure SDL3 development library is installed.
-
----
-
-# 📁 Project Structure
-
-```
-main.cpp
-README.md
-demo/
-Running_output.txt
-```
-
----
-
-# 🔭 Future Work | 未来方向
-
-- Barnes-Hut optimization
-- CUDA / Metal GPU acceleration
-- True 3D sphere rendering
-- GUI overlay
-- Performance benchmarking
-- Large-scale simulation support
-
----
-
-# 📜 License
-
-Educational & Research Use.
-
----
-
-# 👨‍💻 Author
-
-Independent physics engine experiment project.
+```bash
+# 编译示例 (Linux/macOS)
+g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
