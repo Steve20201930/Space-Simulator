@@ -1,71 +1,75 @@
-# Gravity-System & Starship Simulator 🚀
+# Gravity-System & SpaceShip Simulator 🚀
 
-An ultra-hardcore, high-performance N-Body gravity simulation engine built with **SDL3** and **OpenMP**. It features a realistic spacecraft flight model based on SpaceX's **Starship** specifications, allowing you to simulate interplanetary missions from Earth to Mars.
+A high-performance N-Body gravitational physics simulation system built with **SDL3** and **OpenMP**. It simulates galactic evolution and celestial disintegration via the **Roche Limit**, and features a hardcore flight simulator based on SpaceX **Starship** specifications.
 
-## 🌟 Key Features
+## 🌟 Core Features
 
-* **N-Body Physics Engine**: Real-time gravitational interaction between all celestial bodies using multi-threaded OpenMP acceleration.
-* **Starship Flight Model**:
-    * Parameters modeled after **SpaceX Raptor** engines (Thrust, Mass Flow, Fuel Consumption).
-    * Dynamic Mass calculation: Your ship gets lighter and accelerates faster as fuel is depleted.
-* **Orbital Projection System**: Real-time trajectory prediction lines to help you visualize orbital paths and plan fuel-efficient maneuvers.
+* **High-Performance N-Body Simulation**: Physics calculations are accelerated using OpenMP multi-threading, supporting thousands of celestial bodies simultaneously.
+* **Hardcore Spacecraft Physics**:
+    * Modeled after **SpaceX Raptor** engine parameters (Thrust, Specific Impulse, Fuel Consumption).
+    * Real-time calculation of Thrust-to-Weight Ratio (**TWR**) and dynamic mass depletion.
+* **Orbital Prediction System**: Built-in trajectory projection to assist in precision **Hohmann Transfer** maneuvers.
 * **Astrophysical Phenomena**:
-    * **Roche Limit Simulation**: Celestial bodies fragment and disintegrate when they cross the Roche limit of a larger mass.
-    * **Elastic Merging**: Conservation of momentum and mass when planets collide.
-* **Advanced Camera System**: 6-DOF movement with Target Locking and Synchronous Orbit tracking.
+    * **Roche Limit**: Satellites fragment and disintegrate when orbiting too close to a massive body.
+    * **Celestial Merging**: Supports fully elastic merging of mass and momentum upon collision.
+* **Full 3D Camera**: Supports Free Look, Target Locking, and Synchronous Orbit tracking modes.
 
 ## 🛠 Controls
 
-### General Controls
+### Basic Controls
 | Key | Action |
 | :--- | :--- |
 | `T` | Open Command Console |
-| `P` / `O` | Increase / Decrease Camera Speed |
-| `UP` / `DOWN` | Speed up / Slow down Simulation Time (dt) |
-| `TAB` | Pause / Resume Physics |
-| `ESC` | Release Mouse Cursor |
+| `P` / `O` | Increase / Decrease Camera Movement Speed |
+| `UP` / `DOWN` | Increase / Decrease Physics Time Step (dt) |
+| `TAB` | Pause / Resume Simulation |
+| `ESC` | Release Mouse Capture |
 
-### SpaceShip Pilot Mode
+### SpaceShip Mode
 | Key | Action |
 | :--- | :--- |
-| `Left Shift` | Throttle Up |
-| `Left Ctrl` | Throttle Down |
+| `I` | Throttle Up |
+| `K` | Throttle Down |
 | `W / S` | Pitch Down / Up |
 | `A / D` | Yaw Left / Right |
-| `Z` | MAX Throttle (100%) |
-| `X` | Cutoff Thrust (0%) |
-| `L` | Toggle Trajectory Prediction Line |
+| `C` | Enter Synchronous Orbit with Target Planet |
+| `Q` | Input Target Planet Name |
+| `E` | Toggle Auto-Pointing to Target Planet |
+| `Z` | Toggle Trajectory Prediction Line |
 
 ## 💻 Console Commands
 
-Press `T` to enter the console and type:
-* `spaceshipmode` : Toggle between Free Cam and Ship Pilot mode.
-* `sel solar` : Instant load of the Solar System (Sun to Neptune + Moon).
-* `target [Name]` : Set a celestial body as your navigation target.
-* `goto [Name]` : Teleport camera to a specific planet.
+Press `T` to enter the console, then type:
+* `spaceshipmode` : Toggle in/out of Starship pilot mode.
+* `sel solar` : Instant load of the Solar System preset (8 Planets + Moon).
+* `target [Name]` : Lock onto a body and move relative to its frame.
+* `goto [Name]` : Teleport camera to a specific celestial body.
 * `newg [Value]` : Modify the Universal Gravitational Constant $G$.
-* `roche` : Toggle the Roche Limit disintegration effect.
-* `save` : Save the current universe state to `running.txt`.
+* `roche` : Toggle the Roche Limit fragmentation effect.
+* `save` : Save the current system state locally.
+* `newrocheK [Value]` : Modify Roche Limit coefficient (Default: 1.26).
+* `newdnum [Value]` : Modify number of fragments upon disintegration (Default: 2).
+* `newdsize [Value]` : Modify size of fragments (Default: 1.0).
+* `debug` : Toggle Debug Mode.
+* `clear` : Remove all planets.
+* `clearmyship` : Reset all Starship parameters.
 
-## 🚀 Physics Specs (Starship Reference)
+## 🚀 Physics Specifications (SpaceX Starship)
 
+Default simulation parameters:
 - **Dry Mass**: 120,000 kg
 - **Single Raptor Thrust**: 2,745,000 N
-- **Propellant Consumption**: 0.1 kg/s (per engine)(Real engine for 650 kg/s)
-- **Engine Configuration**: 9x Raptor Engines
-- **Theoretical $\Delta v$**: Calculated via the Tsiolkovsky Rocket Equation.
+- **Fuel Consumption**: 0.1 kg/s per engine (Simulated; Real: 650 kg/s)
+- **Configuration**: 9x Raptor Engines (Vacuum/Sea-level mix)
 
+## 🔨 Build Requirements
 
+1. **SDL3**: Ensure the latest SDL3 development libraries are installed.
+2. **OpenMP**: Compiler must support the `-fopenmp` flag.
+3. **C++17** or higher.
 
-## 🔨 Build Instructions
-
-### Dependencies
-- **SDL3**: Latest development libraries.
-- **Compiler**: GCC/Clang with OpenMP support.
-- **C++ Standard**: C++17 or higher.
-
-### Compile
 ```bash
+# Compilation Example (Linux/macOS)
 g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 ```
 # Gravity-System & SpaceShip Simulator 🚀
@@ -80,7 +84,7 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
     * 实时计算推重比（TWR）和质量变化。
 * **轨道预测系统**：内置实时轨迹预测线，帮助你精准规划霍曼转移轨道（Hohmann Transfer）。
 * **天体物理现象**：
-    * **罗氏极限**：当卫星过近时会发生物理粉碎。
+    * **洛希极限**：当卫星过近时会发生物理粉碎。
     * **天体合并**：支持完全弹性的质量与动量合并。
 * **全 3D 摄像机**：自由视角、目标锁定以及同步轨道追踪模式。
 
@@ -98,23 +102,30 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 ### 飞船驾驶 (SpaceShip Mode)
 | 按键 | 功能 |
 | :--- | :--- |
-| `Left Shift` | 增加油门 (Throttle Up) |
-| `Left Ctrl` | 减少油门 (Throttle Down) |
+| `I` | 增加油门 (Throttle Up) |
+| `K` | 减少油门 (Throttle Down) |
 | `W/A/S/D` | 调整飞船 俯仰 (Pitch) 和 偏航 (Yaw) |
-| `Z` | 一键全开油门 (MAX Thrust) |
-| `X` | 立即切断动力 (Cutoff) |
-| `L` | 开启/关闭 轨迹预测线 (Trajectory) |
+| `C` | 自动进入Target行星同步轨道 |
+| `Q` | 输入Target行星名称 |
+| `E` | 锁定/解除 星舰自动指向行星 |
+| `Z` | 开启/关闭 轨迹预测线 (Trajectory) |
 
 ## 💻 控制台指令 (Console Commands)
 
 在按下 `T` 后可以输入以下指令：
 * `spaceshipmode` : 进入/退出飞船模式。
 * `sel solar` : 快速加载太阳系预设（包含八大行星与月球）。
-* `target [Name]` : 锁定特定天体为导航目标。
+* `target [Name]` : 锁定特定天体并进入其内部跟随其移动。
 * `goto [Name]` : 瞬间移动摄像机至该天体。
 * `newg [Value]` : 修改万有引力常数 $G$。
 * `roche` : 开启/关闭罗氏极限粉碎效果。
 * `save` : 保存当前系统状态到本地。
+* `newrocheK [Value]` : 修改洛希极限参数,默认为1.26
+* `newdnum [Value]` : 修改行星解体数量,默认为2
+* `newdsize [Value]` : 修改行星解体后碎片尺寸,默认为1.0
+* `debug` : 开启/关闭Debug模式
+* `clear` : 清空全部行星
+* `clearmyship` : 清空星舰所有参数
 
 ## 🚀 物理参数参考 (SpaceX Starship)
 
