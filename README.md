@@ -32,7 +32,7 @@ A high-performance N-Body gravitational physics simulation system built with **S
 | `K` | Throttle Down |
 | `W / S` | Pitch Down / Up |
 | `A / D` | Yaw Left / Right |
-| `C` | Enter Synchronous Orbit with Target Planet |
+| `C` | Automatically enters the Target planetary synchronous orbit along the tangent in the direction of the bow. |
 | `Q` | Input Target Planet Name |
 | `E` | Toggle Auto-Pointing to Target Planet |
 | `Z` | Toggle Trajectory Prediction Line |
@@ -107,7 +107,7 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 | `I` | 增加油门 (Throttle Up) |
 | `K` | 减少油门 (Throttle Down) |
 | `W/A/S/D` | 调整飞船 俯仰 (Pitch) 和 偏航 (Yaw) |
-| `C` | 自动进入Target行星同步轨道 |
+| `C` | 自动沿船头方向的切线进入Target行星同步轨道 |
 | `Q` | 输入Target行星名称 |
 | `E` | 锁定/解除 星舰自动指向行星 |
 | `Z` | 开启/关闭 轨迹预测线 (Trajectory) |
