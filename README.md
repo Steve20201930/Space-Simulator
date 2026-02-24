@@ -43,7 +43,12 @@ A high-performance N-Body gravitational physics simulation system built with **S
 
 Press `T` to enter the console, then type:
 * `spaceshipmode` : Toggle in/out of Starship pilot mode.
-* `sel solar` : Instant load of the Solar System preset (8 Planets + Moon).
+* `sel [Model]` : Instant load of the Model.
+```bash
+[Model]
+solar : Include the basis solar system with 8 planet.
+solarcompletely : Include the basis solar system and sapturnus ring. Only recommended for the powerful computer to load!!!
+```
 * `target [Name]` : Lock onto a body and move relative to its frame.
 * `goto [Name]` : Teleport camera to a specific celestial body.
 * `newg [Value]` : Modify the Universal Gravitational Constant $G$.
@@ -121,7 +126,12 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 
 在按下 `T` 后可以输入以下指令：
 * `spaceshipmode` : 进入/退出飞船模式。
-* `sel solar` : 快速加载太阳系预设（包含八大行星与月球）。
+* `sel [Model]` : 快速加载预设。
+```bash
+[Model]
+solar : 包含基础太阳系八大行星.
+solarcompletely : 包含基础太阳系八大行星,包含土星环.仅推荐强劲的电脑尝试!!!
+```
 * `target [Name]` : 锁定特定天体并进入其内部跟随其移动。
 * `goto [Name]` : 瞬间移动摄像机至该天体。
 * `newg [Value]` : 修改万有引力常数 $G$。
