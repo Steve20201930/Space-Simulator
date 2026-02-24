@@ -36,6 +36,8 @@ A high-performance N-Body gravitational physics simulation system built with **S
 | `Q` | Input Target Planet Name |
 | `E` | Toggle Auto-Pointing to Target Planet |
 | `Z` | Toggle Trajectory Prediction Line |
+| `U` | Decrease trajectory lane |
+| `O` | Increase trajectory lane |
 
 ## 💻 Console Commands
 
@@ -112,6 +114,8 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 | `Q` | 输入Target行星名称 |
 | `E` | 锁定/解除 星舰自动指向行星 |
 | `Z` | 开启/关闭 轨迹预测线 (Trajectory) |
+| `U` | 缩短轨道预测线 |
+| `O` | 延长轨道预测线 |
 
 ## 💻 控制台指令 (Console Commands)
 
