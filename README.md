@@ -53,7 +53,8 @@ Press `T` to enter the console, then type:
 * `debug` : Toggle Debug Mode.
 * `clear` : Remove all planets.
 * `clearmyship` : Reset all Starship parameters.
-* `[Quantity]` : Input a planet with its full parameters. The standard format is: [Name] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [Mass] [Radius] [R] [G] [B] [Transparency]
+* `[Quantity]` : Input a planet with its full parameters. The standard format is: [Name] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [Mass] [Radius] [R] [G] [B] [Transparency] [Is stellar?(true/false)]
+* `shader` : Active/Inactive realtime shader
 
 
 ## 🚀 Physics Specifications (SpaceX Starship)
@@ -128,7 +129,8 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 * `debug` : 开启/关闭Debug模式
 * `clear` : 清空全部行星
 * `clearmyship` : 清空星舰所有参数
-* `[Quantity]` : 输入行星以及各种参数,标准格式为: [名称] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [质量] [半径] [R] [G] [B] [透明度]
+* `[Quantity]` : 输入行星以及各种参数,标准格式为: [名称] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [质量] [半径] [R] [G] [B] [透明度] [是否为恒星(true/false)]
+* `shader` : 开启或关闭实时光影
 
 ## 🚀 物理参数参考 (SpaceX Starship)
 
