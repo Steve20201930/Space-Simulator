@@ -84,7 +84,7 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 ```
 # Gravity-System & SpaceShip Simulator 🚀
 
-这是一个基于 **SDL3** 和 **OpenMP** 开发的高性能 N-Body 万有引力物理仿真系统。它不仅能模拟星系演化、罗氏极限（Roche Limit）下的天体解体，还内置了一个高度还原 SpaceX **Starship（星舰）** 参数的飞船驾驶模拟器。
+这是一个基于 **SDL3** 和 **OpenMP** 开发的高性能 N-Body 万有引力物理仿真系统。它不仅能模拟星系演化、洛希极限（Roche Limit）下的天体解体，还内置了一个高度还原 SpaceX **Starship（星舰）** 参数的飞船驾驶模拟器。
 
 ## 🌟 核心特性
 
