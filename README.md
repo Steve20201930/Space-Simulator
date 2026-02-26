@@ -163,3 +163,9 @@ solarcompletely : 包含基础太阳系八大行星,包含土星环.仅推荐强
 ```bash
 # 编译示例 (Linux/macOS)
 g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
+
+##Realtime Shader
+<img width="1624" height="997" alt="Screenshot 2026-02-26 at 13 40 12" src="https://github.com/user-attachments/assets/d958744d-a707-4fa5-b22c-8a0382825ed4" />
+<img width="1624" height="997" alt="Screenshot 2026-02-26 at 13 41 11" src="https://github.com/user-attachments/assets/437a9cfd-8969-4d93-a5ad-33d0520f1433" />
+<img width="1624" height="997" alt="Screenshot 2026-02-26 at 13 43 05" src="https://github.com/user-attachments/assets/b615a6d2-805d-4f44-9666-b2d4accf0781" />
+
