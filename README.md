@@ -62,6 +62,11 @@ solarcompletely : Include the basis solar system and sapturnus ring. Only recomm
 * `clearmyship` : Reset all Starship parameters.
 * `[Quantity]` : Input a planet with its full parameters. The standard format is: [Name] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [Mass] [Radius] [R] [G] [B] [Transparency] [Is stellar?(true/false)]
 * `shader` : Active/Inactive realtime shader
+* `in/out [Method]` : Use different method to compute, default in CPU.(Enable/Disable)
+```bash
+[Method]
+Metal : Metal to compute
+```
 
 
 ## 🚀 Physics Specifications (SpaceX Starship)
@@ -145,6 +150,11 @@ solarcompletely : 包含基础太阳系八大行星,包含土星环.仅推荐强
 * `clearmyship` : 清空星舰所有参数
 * `[Quantity]` : 输入行星以及各种参数,标准格式为: [名称] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [质量] [半径] [R] [G] [B] [透明度] [是否为恒星(true/false)]
 * `shader` : 开启或关闭实时光影
+* `in/out [method]` : 使用不同方法计算,默认在CPU计算(开启/关闭)
+```bash
+[method]
+Metal : Metal方法计算
+```
 
 ## 🚀 物理参数参考 (SpaceX Starship)
 
