@@ -67,6 +67,7 @@ solarcompletely : Include the basis solar system and sapturnus ring. Only recomm
 [Method]
 Metal : Metal to compute
 ```
+* `autodt` : Enable/Disable time changing method
 
 
 ## 🚀 Physics Specifications (SpaceX Starship)
@@ -155,6 +156,7 @@ solarcompletely : 包含基础太阳系八大行星,包含土星环.仅推荐强
 [method]
 Metal : Metal方法计算
 ```
+* `autodt` : 开启/关闭 自动时间管理
 
 ## 🚀 物理参数参考 (SpaceX Starship)
 
