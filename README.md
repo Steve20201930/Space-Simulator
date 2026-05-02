@@ -199,5 +199,8 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 <img width="1624" height="997" alt="Screenshot 2026-02-26 at 13 40 12" src="https://github.com/user-attachments/assets/d958744d-a707-4fa5-b22c-8a0382825ed4" />
 <img width="1624" height="997" alt="Screenshot 2026-02-26 at 13 41 11" src="https://github.com/user-attachments/assets/437a9cfd-8969-4d93-a5ad-33d0520f1433" />
 <img width="3248" height="1994" alt="Screenshot 2026-03-02 at 22 09 57" src="https://github.com/user-attachments/assets/19f8d090-0de4-469e-be92-0266c44138db" />
+<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 24 31" src="https://github.com/user-attachments/assets/c0e097cb-1a6c-48de-b35c-52e792d42e5c" />
+<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 27 51" src="https://github.com/user-attachments/assets/dca73026-8b28-4366-bddb-e01b9e7c8543" />
+
 
 
