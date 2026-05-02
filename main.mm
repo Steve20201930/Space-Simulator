@@ -74,15 +74,13 @@ id<MTLCommandQueue> queuea=[device newCommandQueue];
 id<MTLLibrary> lib=[device newDefaultLibrary];
 id<MTLFunction> func=[lib newFunctionWithName:@"comp"];
 id<MTLComputePipelineState> pipeline=[device newComputePipelineStateWithFunction:func error:nil];
-id<MTLFunction> func2=[lib newFunctionWithName:@"shader"];
-id<MTLComputePipelineState> pipeline2=[device newComputePipelineStateWithFunction:func2 error:nil];
 bool isNumber(string& str);
 double Screen(particle& p,camera& cam);
 void drawCircle3(SDL_Renderer* ren,projection p,double fov_deg,bool Target);
 int findFocus(vector<particle>& planet,camera& cam);
 void disintegrate4(vector<particle>& p,vector<particle>& roc,double rocheR,double r,int cur,double dx,double dy,double dz,double K);
 void merge(vector<particle>& p,int cur,int comp);
-void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera &cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal);
+void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera &cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal,bool& AutoDTime,long& second,float& fps,int& perform);
 void save(vector<particle> p);
 void camera_movement(camera &cam,double friction,double acceleration,bool& camera_locked,string camera_lockin,vector<particle> p);
 void position_movement(vector<particle> &planet,vector<double> &newx,vector<double> &newy,vector<double> &newz,vector<double> &newax,vector<double> &neway,vector<double> &newaz,bool roche,vector<particle> &roc,bool SpaceShipMode);
@@ -94,6 +92,7 @@ void AutoOrbitSystem(bool first_lockedC,vector<particle> p);
 void DrawTrajectorySystem(SDL_Renderer* ren,double proj,vector<particle> p, camera& cam);
 void DrawCircleShader(SDL_Renderer* ren,projection p,double fov_deg,bool Target,double lx,double ly,double lz,double stellar_intensity);
 void DrawTTF(SDL_Renderer* ren, TTF_Font* font, const char* text, float centerX, float centerY, SDL_Color col,float maxWidth,float x_scale,float y_scale);
+void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg);
 int main()
 {
     vector<particle> planet;
@@ -116,6 +115,7 @@ int main()
     TTF_Font* font=TTF_OpenFont(full_path.c_str(),40);
     const double mousesensitivity=0.1;
     bool shader=false;
+    int perform=1;
     /*Initial movement*/
     double acceleration=0.5;
     double friction=0.94;
@@ -130,6 +130,9 @@ int main()
     bool mouse_locked=true;
     bool debug=true;
     bool SpaceShipMode=false;
+    bool AutoDTime=true;
+    long accelerate=1;
+    long second=1.0;
     //Inital input&SpaceShip Initial input
     bool isTyping=false;
     bool shipisTyping=false;
@@ -160,9 +163,17 @@ int main()
             }case SDL_EVENT_KEY_DOWN:{
                 if(isTyping==false&&shipisTyping==false&&targetisTyping==false){
                     if(event.key.key==SDLK_UP){
-                        dt*=10;
+                        if(AutoDTime&&accelerate<9999999999999999){
+                            second+=accelerate;
+                            accelerate+=5;
+                        }
+                        else dt*=10;
                     }else if(event.key.key==SDLK_DOWN){
-                        dt*=0.1;
+                        if(AutoDTime&&accelerate<9999999999999999){
+                            second-=accelerate;
+                            accelerate+=5;
+                        }
+                        else dt*=0.1;
                     }else if(event.key.key==SDLK_P&&acceleration<200000000.0){
                         acceleration*=10;
                     }else if(event.key.key==SDLK_O&&acceleration>0.2){
@@ -186,6 +197,17 @@ int main()
                     }else{
                         mouse_locked=false;
                         SDL_SetWindowRelativeMouseMode(win, false);
+                    }
+                }
+                break;
+            }
+            case SDL_EVENT_KEY_UP:{
+                if(isTyping==false&&shipisTyping==false&&targetisTyping==false){
+                    if(event.key.key==SDLK_UP){
+                        accelerate=1;
+                    }
+                    if(event.key.key==SDLK_DOWN){
+                        accelerate=1;
                     }
                 }
                 break;
@@ -258,40 +280,49 @@ int main()
             }
             if(shader){
                 if(rendering[cur].stellar) {
+                    DrawStellarShader(ren, rendering[cur], cam.fov);
+//                    SDL_SetRenderDrawColor(ren,rendering[cur].c1,rendering[cur].c2,rendering[cur].c3,rendering[cur].c4);
 //                    DrawStellarShader(ren, rendering[cur], cam.fov,target);
+//                    drawCircle3(ren,rendering[cur],cam.fov,target);
+                    continue;
+                }
+                if(sqrt((cam.x-rendering[cur].x)*(cam.x-rendering[cur].x)+(cam.y-rendering[cur].y)*(cam.y-rendering[cur].y)+(cam.z-rendering[cur].z))>1e16&&perform==1){
                     SDL_SetRenderDrawColor(ren,rendering[cur].c1,rendering[cur].c2,rendering[cur].c3,rendering[cur].c4);
                     drawCircle3(ren,rendering[cur],cam.fov,target);
                     continue;
                 }
-                if(sqrt((cam.x-rendering[cur].x)*(cam.x-rendering[cur].x)+(cam.y-rendering[cur].y)*(cam.y-rendering[cur].y)+(cam.z-rendering[cur].z))>1e16){
-                    SDL_SetRenderDrawColor(ren,rendering[cur].c1,rendering[cur].c2,rendering[cur].c3,rendering[cur].c4);
-                    drawCircle3(ren,rendering[cur],cam.fov,target);
-                    continue;
-                }
+                DrawCircleShader(ren, rendering[cur], cam.fov, target, 0, 0, 0, 0);
                 double stellar_intensity=0;
-                double drx=0; double dry=0; double drz=0;
+                double lx = 0, ly = 0, lz = 0;
                 double dr=ess;
                 for(int i=0;i<planet.size();i++){
                     if(planet[i].stellar==true){
-                        drx=planet[i].x-rendering[cur].x;
-                        dry=planet[i].y-rendering[cur].y;
-                        drz=planet[i].z-rendering[cur].z;
+                        double drx=planet[i].x-rendering[cur].x;
+                        double dry=planet[i].y-rendering[cur].y;
+                        double drz=planet[i].z-rendering[cur].z;
                         dr=sqrt(drx*drx+dry*dry+drz*drz)+ess;
+                        //IDK WHY BUT THIS VECTOR IS GOOD TO WORK
+
+                        double a=cam.yaw*(M_PI/180.0);
+                        double b=cam.pitch*(M_PI/180.0);
+                        double rx = drx * cos(a) - drz * sin(a);
+                        double rz1 = drx * sin(a) + drz * cos(a);
+                        double ry = dry * cos(b) - rz1 * sin(b);
+                        double rz = dry * sin(b) + rz1 * cos(b);
+                        double view_dist = sqrt(rx * rx + ry * ry + rz * rz) + ess;
                         double k = 0.05;
                         stellar_intensity = 1.0 / (1.0 + log10(dr / planet[i].radius + 1.0) * k);
-                        break;
+                        lx += stellar_intensity * rx / view_dist;
+                        ly += stellar_intensity * -ry / view_dist;
+                        lz += stellar_intensity * -rz / view_dist;
+                        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_ADD);
+                        DrawCircleShader(ren, rendering[cur], cam.fov, target, lx, ly, lz, stellar_intensity);
+                        if(perform<=2){
+                            break;
+                        }
                     }
                 }
-                double wlx=drx/dr; double wly=dry/dr; double wlz=drz/dr;
-                double a=-cam.yaw*(M_PI/180.0);
-                double b=-cam.pitch*(M_PI/180.0);
-                
-                double lx = wlx * cos(a) - wlz * sin(a);
-                double lz1 = wlx * sin(a) + wlz * cos(a);
-                double ly = wly * cos(b) - lz1 * sin(b);
-                double lz = wly * sin(b) + lz1 * cos(b);
-                ly=-ly;
-                DrawCircleShader(ren, rendering[cur], cam.fov, target, lx, ly, lz, stellar_intensity);
+                SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
             }
             
         }
@@ -328,7 +359,7 @@ int main()
                     commandbuf+=" ";
                     currentbuf.push_back(">");
                 }else if(event.key.key==SDLK_RETURN){
-                    execute(planet,commandbuf,pause,roche,debug,SpaceShipMode,cam,camera_lockin,camera_locked,win,shader,isMetal);
+                    execute(planet,commandbuf,pause,roche,debug,SpaceShipMode,cam,camera_lockin,camera_locked,win,shader,isMetal,AutoDTime,second,fps,perform);
                     isTyping=false;
                     SDL_StopTextInput(win);
                     if(SpaceShipMode)pause=false;
@@ -359,7 +390,20 @@ int main()
                 frame_count=0;
                 last_time=current_time;
             }
+            if(AutoDTime)dt=second/fps;
             string debug_buf1="X:"+to_string(cam.x)+" Y:"+to_string(cam.y)+" Z:"+to_string(cam.z)+"  YAW:"+to_string(cam.yaw)+" PITCH:"+to_string(cam.pitch)+"    Quantity:"+to_string(planet.size());
+            if(AutoDTime){
+                debug_buf1+=" Scale:";
+                long minutes=second/60;
+                long hours=second/3600;
+                long days=second/86400;
+                long years=second/31536000;
+                if(years!=0)debug_buf1+=to_string(years)+"y ";
+                if(days!=0)debug_buf1+=to_string(days%365)+"d ";
+                if(hours!=0)debug_buf1+=to_string(hours%24)+"hr ";
+                if(minutes!=0)debug_buf1+=to_string(minutes%60)+"min ";
+                debug_buf1+=to_string(second%60)+"s /s";
+            }
             string debug_buf2="RunSpeed(dt/s):"+to_string(dt)+" acceleration:"+to_string(acceleration)+" FOV:"+to_string(cam.fov)+" fps:"+to_string(fps);
             string debug_buf3="RocheLimit:["+to_string(roche)+"] "+to_string(rocheK);
             string debug_buf4="G:"+toScientific(G, 4);
@@ -486,7 +530,7 @@ void position_movement(vector<particle> &planet,vector<double> &newx,vector<doub
             }
             //Compute merge limit
             if(roche==true&&planet[cur].merged==false&&planet[comp].merged==false){
-                if((planet[cur].radius+planet[comp].radius)<r)continue;
+                if(r>(planet[comp].radius-planet[cur].radius))continue;
                 merge(planet,cur,comp);
                 planet[cur].merged=true;
                 planet[comp].merged=true;
@@ -577,6 +621,8 @@ void position_movement_METAL(vector<particle> &planet,vector<double> &newx,vecto
     id<MTLBuffer> bufG=[device newBufferWithBytes:&nG length:sizeof(float) options:MTLResourceStorageModeShared];
     id<MTLBuffer> bufShip=[device newBufferWithBytes:&SpaceShipMode length:sizeof(bool) options:MTLResourceStorageModeShared];
     
+    
+    
     id<MTLCommandBuffer> cmd=[queuea commandBuffer];
     id<MTLComputeCommandEncoder> enc=[cmd computeCommandEncoder];
     
@@ -659,7 +705,7 @@ void save(vector<particle> p){
     }
     file.close();
 }
-void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera& cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal){
+void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera& cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal,bool& AutoDTime,long& second,float& fps,int& perform){
     stringstream ssin(command);
     string n;
     ssin>>n;
@@ -760,75 +806,139 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
             isMetal=false;
         }
     }
+    if(n=="perform"){
+        string per;
+        ssin>>per;
+        if(per=="1"){
+            perform=1;
+        }else if(per=="2"){
+            perform=2;
+        }else if(per=="3"){
+            perform=3;
+        }
+    }
     if(n=="sel"){
         string name;
         ssin>>name;
-        if(name=="solar"||name=="solarcompletely"){
-            p.push_back({"Sun", 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9885e30, 695700000, 255, 122, 26, 255, true});
+        if(name=="solar"||name=="solar2"||name=="solar3"){
+            p.push_back({"Sun", 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9885e30, 695700000, 255, 210, 26, 255, true});
             p.push_back({"Mercury", 6.98179e10, 0, 0, 0, 0, 47870, 0, 0, 0, 3.3022e23, 2440000, 194, 194, 194, 255, false});
             p.push_back({"Venus", 1.08939e11, 0, 0, 0, 0, 35020, 0, 0, 0, 4.8676e24, 6051000, 255, 236, 59, 255, false});
-            p.push_back({"Earth", 1.521e11, 0, 0, 0, 0, 29780, 0, 0, 0, 5.97237e24, 6.371e6, 49, 181, 247, 255, false});
+            p.push_back({"Earth", 1.521e11, 0, 0, 0, 0, 29780, 0, 0, 0, 5.97237e24, 6.371e6, 28, 115, 232, 255, false});
             p.push_back({"Mars", 2.49261e11, 0, 0, 0, 0, 24080, 0, 0, 0, 6.4169e23, 3.3895e6, 245, 91, 22, 255, false});
             p.push_back({"Jupiter", 8.165208e11, 0, 0, 0, 0, 13070, 0, 0, 0, 1.8981e27, 6.9886e7, 255, 213, 125, 255, false});
             p.push_back({"Saturnus", 1.353572956e12, 0, 0, 0, 0, 9690, 0, 0, 0, 5.6846e26, 5.8232e7, 219, 167, 61, 255, false});
             p.push_back({"Uranus", 3.004419704e12, 0, 0, 0, 0, 6810, 0, 0, 0, 8.6810e25, 2.5559e7, 215, 248, 250, 255, false});
-            p.push_back({"Neptune", 4.55394649e12, 0, 0, 0, 0, 5430, 0, 0, 0, 1.0243e26, 2.4764e7, 0, 0, 139, 255, false});
+            p.push_back({"Neptune", 4.55394649e12, 0, 0, 0, 0, 5430, 0, 0, 0, 1.0243e26, 2.4764e7, 65, 105, 225, 255, false});
             p.push_back({"Moon", 1.51736896e11, 0, 0, 0, 0, 30802, 0, 0, 0, 7.3477e22, 1.7371e6, 194, 194, 194, 255, false});
-            if(name=="solarcompletely"){
-                double s_x = 1.353572956e12, s_y = 0, s_z = 0;
-                double s_vx = 0, s_vy = 0, s_vz = 9690;
-                double s_m = 5.6846e26, s_r = 5.8232e7;
-                double tilt = 26.73 * (M_PI / 180.0);
-                int ring_count = 10000;
-                random_device rd;
-                mt19937 gen(rd());
-                uniform_real_distribution<> dis(0.0, 1.0);
-                for(int i=0;i<ring_count;i++){
-                    //Ring's radius
-                    double norm_dist = dis(gen);
-                    double r_orbit = s_r * (1.3 + 1.2 * norm_dist);
-                    double angle = dis(gen) * 2.0 * M_PI;
-                    //Ring's texture
-                    double ring_pattern = sin(norm_dist * 20.0) * 0.5 + 0.5;
-                    double gap_shading = (norm_dist > 0.65 && norm_dist < 0.7) ? 0.2 : 1.0;
-                    double final_shade = (0.6 + 0.4 * ring_pattern) * gap_shading;
-                    //Ring's thickness
-                    double rx_0 = cos(angle) * r_orbit;
-                    double rz_0 = sin(angle) * r_orbit;
-                    double ry_0 = (dis(gen) - 0.5) * s_r * 0.01;
+            if(name=="solar2"||name=="solar3"){
+                p.push_back({"MarsI",2.4925188e11,0,0,0,0,26229.2183,0,0,0,1.8e15,1.11e4,160,160,160,255,false});
+                p.push_back({"MarsII",2.4923754e11,0,0,0,0,25428.3773,0,0,0,1.48e15,6.2e3,163,163,163,255,false});
+                p.push_back({"J1",8.160991e11,0,0,0,0,30366.991,0,0,0,8.94e22,1.8213e6,164,164,164,255,false});
+                p.push_back({"J2",8.158499e11,0,0,0,0,26783.347,0,0,0,4.799844e22,1.5608e6,165,165,165,255,false});
+                p.push_back({"J3",8.154504e11,0,0,0,0,23926.737,0,0,0,1.4819e23,2.6431e6,166,166,166,255,false});
+                p.push_back({"J4",8.146381e11,0,0,0,0,19771.37,0,0,0,1.075938e23,2.4103e6,168,168,168,255,false});
+                p.push_back({"J5",8.1633944e11,0,0,0,0,39445.13,0,0,0,2.08e18,8.35e4,170,170,170,255,false});
+                p.push_back({"J6",8.034388e11,0,0,0,0,16175.526,0,0,0,4.2e18,1.414e5,172,172,172,255,false});
+                p.push_back({"J7",8.034388e11,0,0,0,0,16348.221,0,0,0,8.7e17,4.3e4,174,174,174,255,false});
+                if(name=="solar3"){
+                    double s_x = 1.353572956e12, s_y = 0, s_z = 0;
+                    double s_vx = 0, s_vy = 0, s_vz = 9690;
+                    double s_m = 5.6846e26, s_r = 5.8232e7;
+                    double tilt = 26.73 * (M_PI / 180.0);
+                    int ring_count = 10000;
+                    random_device rd;
+                    mt19937 gen(rd());
+                    uniform_real_distribution<> dis(0.0, 1.0);
+                    for(int i=0;i<ring_count;i++){
+                        //Ring's radius
+                        double norm_dist = dis(gen);
+                        double r_orbit = s_r * (1.3 + 1.2 * norm_dist);
+                        double angle = dis(gen) * 2.0 * M_PI;
+                        //Ring's texture
+                        double ring_pattern = sin(norm_dist * 20.0) * 0.5 + 0.5;
+                        double gap_shading = (norm_dist > 0.65 && norm_dist < 0.7) ? 0.2 : 1.0;
+                        double final_shade = (0.6 + 0.4 * ring_pattern) * gap_shading;
+                        //Ring's thickness
+                        double rx_0 = cos(angle) * r_orbit;
+                        double rz_0 = sin(angle) * r_orbit;
+                        double ry_0 = (dis(gen) - 0.5) * s_r * 0.01;
 
-                    double v_mag = sqrt(G * s_m / r_orbit);
-                    double rvx_0 = -sin(angle) * v_mag;
-                    double rvz_0 = cos(angle) * v_mag;
-                    double rvy_0 = 0;
-                    //Axis X Changing
-                    double rx = rx_0;
-                    double ry = ry_0 * cos(tilt) - rz_0 * sin(tilt);
-                    double rz = ry_0 * sin(tilt) + rz_0 * cos(tilt);
+                        double v_mag = sqrt(G * s_m / r_orbit);
+                        double rvx_0 = -sin(angle) * v_mag;
+                        double rvz_0 = cos(angle) * v_mag;
+                        double rvy_0 = 0;
+                        //Axis X Changing
+                        double rx = rx_0;
+                        double ry = ry_0 * cos(tilt) - rz_0 * sin(tilt);
+                        double rz = ry_0 * sin(tilt) + rz_0 * cos(tilt);
+                        
+                        double rvx = rvx_0;
+                        double rvy = rvy_0 * cos(tilt) - rvz_0 * sin(tilt);
+                        double rvz = rvy_0 * sin(tilt) + rvz_0 * cos(tilt);
+                        //Color
+                        int cr = (int)(219 * final_shade);
+                        int cg = (int)(167 * final_shade);
+                        int cb = (int)(100 * final_shade);
+                        
+                        p.push_back({"Ring_Part", s_x + rx, s_y + ry, s_z + rz, s_vx + rvx, s_vy + rvy, s_vz + rvz,0, 0, 0, 1e15, 300000.0, (Uint8)cr, (Uint8)cg, (Uint8)cb, 255, false});
+                    }
                     
-                    double rvx = rvx_0;
-                    double rvy = rvy_0 * cos(tilt) - rvz_0 * sin(tilt);
-                    double rvz = rvy_0 * sin(tilt) + rvz_0 * cos(tilt);
-                    //Color
-                    int cr = (int)(219 * final_shade);
-                    int cg = (int)(167 * final_shade);
-                    int cb = (int)(100 * final_shade);
-                    
-                    p.push_back({"Ring_Part", s_x + rx, s_y + ry, s_z + rz, s_vx + rvx, s_vy + rvy, s_vz + rvz,0, 0, 0, 1e15, 300000.0, (Uint8)cr, (Uint8)cg, (Uint8)cb, 255, false});
+                    int asteroid_count = 2000;
+                    double G = 6.67430e-11;
+                    double sun_m = 1.9885e30;
+
+                    for(int i = 0; i < asteroid_count; i++) {
+                        //2.1AU-3.3AU
+                        double r_orbit = (3.1e11 + dis(gen) * 1.7e11);
+                        double angle = dis(gen) * 2.0 * M_PI;
+                        
+                        //Random orbit
+                        double vertical_dist = (dis(gen) - 0.5) * 1e10;
+
+                        double ax = cos(angle) * r_orbit;
+                        double az = sin(angle) * r_orbit;
+                        double ay = vertical_dist;
+
+                        double v_mag = sqrt(G * sun_m / r_orbit);
+                        double avx = -sin(angle) * v_mag;
+                        double avz = cos(angle) * v_mag;
+                        double avy = (dis(gen) - 0.5) * 500;//Random speed
+
+                        int gray = 100 + (int)(dis(gen) * 60);
+                        
+                        p.push_back({"Asteroid", ax, ay, az, avx, avy, avz, 0, 0, 0, 1e16, 400000.0, (Uint8)gray, (Uint8)gray, (Uint8)gray, 255, false});
+                    }
                 }
+                
             }
+        }
+        if(name=="J2000"){
+            p.push_back({"Sun",0,0,0,0,0,0,0,0,0,1.9885e30,695700000,255,210,26,255,true});
+            p.push_back({"Mercury",-2.521097e10,4.403542e10,5.190143e09,-4.790189e04,-2.621833e04,2.323756e03,0,0,0,3.3022e23,2440000,194,194,194,255,false});
+            p.push_back({"Venus",-1.075055e11,-3.366520e10,5.706055e09,1.074483e04,-3.519233e04,-1.055433e03,0,0,0,4.8676e24,6051000,255,236,59,255,false});
+            p.push_back({"Earth",-2.650443e10,1.446262e11,-3.866346e04,-2.978611e04,-5.455937e03,3.497548e-01,0,0,0,5.97237e24,6.371e6,28,115,232,255,false});
+            p.push_back({"Moon",-2.687302e10,1.449407e11,8.615146e07,-3.058929e04,-6.237986e03,8.651896e01,0,0,0,7.3477e22,1.7371e6,194,194,194,255,false});
+            p.push_back({"Mars",2.079950e11,-3.143009e09,-5.201802e09,1.164770e03,2.649227e04,5.327515e02,0,0,0,6.4169e23,3.3895e6,245,91,22,255,false});
+            p.push_back({"Jupiter",5.982191e11,4.391086e11,-1.523254e10,-7.901937e03,1.109340e04,1.306729e02,0,0,0,1.8981e27,6.9886e7,255,213,125,255,false});
+            p.push_back({"Saturn",9.586095e11,9.825652e11,-5.522900e10,-7.049246e03,6.727673e03,1.775769e02,0,0,0,5.6846e26,5.8232e7,219,167,61,255,false});
+            p.push_back({"Uranus",2.158746e12,-2.055373e12,-3.559704e10,4.663791e03,4.626879e03,-1.463484e02,0,0,0,8.6810e25,2.5559e7,215,248,250,255,false});
+            p.push_back({"Neptune",2.514009e12,-3.739228e12,1.901638e10,4.466817e03,3.077484e03,-1.669711e02,0,0,0,1.0243e26,2.4764e7,65,105,225,255,false});
         }
         return;
     }
     if(n=="shader"){
         shader=!shader;
     }
+    if(n=="autodt"){
+        AutoDTime=!AutoDTime;
+        second=dt*fps;
+    }
     if(isNumber(n)==false)return;
-    
     
     for(int i=0;i<stoi(n);i++){
         string name;
-        double x,y,z;
+        string x,y,z;
         double vx,vy,vz;
         double ax,ay,az;
         double mass;
@@ -836,7 +946,11 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
         int c1,c2,c3,c4;
         bool stellar;
         ssin>>name>>x>>y>>z>>vx>>vy>>vz>>ax>>ay>>az>>mass>>radius>>c1>>c2>>c3>>c4>>stellar;
-        p.push_back({name,x,y,z,vx,vy,vz,ax,ay,az,mass,radius,c1,c2,c3,c4,stellar});
+        if(name=="")return;
+        if(x=="~")x=to_string(cam.x);
+        if(y=="~")y=to_string(cam.y);
+        if(z=="~")z=to_string(cam.z);
+        p.push_back({name,stod(x),stod(y),stod(z),vx,vy,vz,ax,ay,az,mass,radius,c1,c2,c3,c4,stellar});
     }
 }
 void merge(vector<particle>& p,int cur,int comp){
@@ -1493,4 +1607,66 @@ void DrawTTF(SDL_Renderer* ren, TTF_Font* font, const char* text, float centerX,
     
     SDL_DestroySurface(surf);
     SDL_DestroyTexture(tex);
+}
+void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg) {
+
+    double fov_rad = fov_deg * (M_PI / 180.0);
+    double focal_length = height / (2.0 * tan(fov_rad * 0.5));
+
+    double r = p.r * focal_length / (p.sz + 1e-6);
+    if (r <= 0 || p.sz <= 0) return;
+
+    int glow_limit = r * 8; // 稍微降一点，性能更稳
+
+    int start_i = max(-glow_limit, (int)-p.sx);
+    int end_i   = min(glow_limit,  (int)(width - p.sx));
+    int start_j = max(-glow_limit, (int)-p.sy);
+    int end_j   = min(glow_limit,  (int)(height - p.sy));
+
+    double inv_r2 = 1.0 / (r * r);
+    double inv_glow = 1.0 / glow_limit;
+
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_ADD);
+
+    for (int j = start_j; j <= end_j; j++) {
+        int jj = j * j;
+        for (int i = start_i; i <= end_i; i++) {
+            int dist_sq = i * i + jj;
+            // 圆形裁剪（减少约 20~30% 像素）
+            if (dist_sq > glow_limit * glow_limit) continue;
+            double norm_dist_sq = dist_sq * inv_r2;
+            double intensity;
+
+            if (norm_dist_sq < 1.0) {
+                // 内核（避免 sqrt）
+                intensity = 1.5 - 0.5 * norm_dist_sq;
+            } else {
+                // 外光晕（完全平方版本）
+                intensity = 1.0 / (norm_dist_sq * 0.8 + 0.2);
+
+                // 软边（不用 sqrt）
+                double fade = 1.0 - (dist_sq * inv_glow * inv_glow);
+                if (fade < 0) continue;
+
+                intensity *= fade;
+            }
+
+            if (intensity <= 0.01) continue;
+
+            int boost = (intensity > 1.0) ? (int)((intensity - 1.0) * 255) : 0;
+
+            int final_r = p.c1 * intensity + boost;
+            int final_g = p.c2 * intensity + boost;
+            int final_b = p.c3 * intensity + boost;
+
+            if (final_r > 255) final_r = 255;
+            if (final_g > 255) final_g = 255;
+            if (final_b > 255) final_b = 255;
+
+            SDL_SetRenderDrawColor(ren, final_r, final_g, final_b, 255);
+            SDL_RenderPoint(ren, p.sx + i, p.sy + j);
+        }
+    }
+
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
 }
