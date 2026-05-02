@@ -47,8 +47,7 @@ Press `T` to enter the console, then type:
 ```bash
 [Model]
 solar : Include the basis solar system with 8 planet.
-solar2 : Include the basis solar system and sapturnus ring. Only recommended for the powerful computer to load!!!
-solar3 : Include the basis solar system, sapturnus ring and some basis satellites. Only recommended for the powerful computer to load!!!
+solarcompletely : Include the basis solar system and sapturnus ring. Only recommended for the powerful computer to load!!!
 ```
 * `target [Name]` : Lock onto a body and move relative to its frame.
 * `goto [Name]` : Teleport camera to a specific celestial body.
@@ -137,8 +136,7 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 ```bash
 [Model]
 solar : 包含基础太阳系八大行星.
-solar2：包含基础太阳系和土卫六环。仅推荐高性能电脑运行！
-solar3：包含基础太阳系、土卫六环和部分基础卫星。仅推荐高性能电脑运行！！！
+solarcompletely：包含基础太阳系和土卫六环。仅推荐高性能电脑运行！
 ```
 * `target [Name]` : 锁定特定天体并进入其内部跟随其移动。
 * `goto [Name]` : 瞬间移动摄像机至该天体。
