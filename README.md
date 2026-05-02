@@ -47,9 +47,9 @@ Press `T` to enter the console, then type:
 ```bash
 [Model]
 solar : Include the basis solar system with 8 planet.
-(<v2.2.1)solarcompletely / (>v2.2.2)solar2: Include the basis solar system and sapturnus ring. Only recommended for the powerful computer to load!!!
-(>v2.2.2)solar3 : Includes the moons of the primary planet, Saturn's rings, and the asteroid belt. Only recommended for the powerful computer to load!!!
-(>v2.2.2)J2000 : January 1, 2000, 11:58:55.816 Basic Star and Planetary Positions.
+(<=v2.2.1)solarcompletely / (>=v2.2.2)solar2: Include the basis solar system and sapturnus ring. Only recommended for the powerful computer to load!!!
+(>=v2.2.2)solar3 : Includes the moons of the primary planet, Saturn's rings, and the asteroid belt. Only recommended for the powerful computer to load!!!
+(>=v2.2.2)J2000 : January 1, 2000, 11:58:55.816 Basic Star and Planetary Positions.
 ```
 * `target [Name]` : Lock onto a body and move relative to its frame.
 * `goto [Name]` : Teleport camera to a specific celestial body.
@@ -145,9 +145,9 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 ```bash
 [Model]
 solar : 包含基础太阳系八大行星.
-（<v2.2.1）solarcompletely / （>v2.2.2）solar2：包含基础太阳系和土星环。仅推荐高性能电脑加载！！！
-（>v2.2.2）solar3：包含主行星的卫星、土星环和小行星带。仅推荐高性能电脑加载！！！
-（>v2.2.2）J2000：2000年1月1日 11:58:55.816 基本恒星和行星位置。
+（<=v2.2.1）solarcompletely / （>=v2.2.2）solar2：包含基础太阳系和土星环。仅推荐高性能电脑加载！！！
+（>=v2.2.2）solar3：包含主行星的卫星、土星环和小行星带。仅推荐高性能电脑加载！！！
+（>=v2.2.2）J2000：2000年1月1日 11:58:55.816 基本恒星和行星位置。
 ```
 * `target [Name]` : 锁定特定天体并进入其内部跟随其移动。
 * `goto [Name]` : 瞬间移动摄像机至该天体。
