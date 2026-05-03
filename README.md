@@ -1,3 +1,10 @@
+##Realtime Shader
+<img width="1624" height="997" alt="Screenshot 2026-02-26 at 13 40 12" src="https://github.com/user-attachments/assets/d958744d-a707-4fa5-b22c-8a0382825ed4" />
+<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 51 23" src="https://github.com/user-attachments/assets/74107401-bdd9-4030-908a-432c15c21165" />
+<img width="3248" height="1994" alt="Screenshot 2026-03-02 at 22 09 57" src="https://github.com/user-attachments/assets/19f8d090-0de4-469e-be92-0266c44138db" />
+<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 27 51" src="https://github.com/user-attachments/assets/dca73026-8b28-4366-bddb-e01b9e7c8543" />
+<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 18 02 22" src="https://github.com/user-attachments/assets/b3e1bdad-c0ce-42e6-8504-e0de381b0844" />
+
 # Gravity-System & SpaceShip Simulator 🚀
 
 A high-performance N-Body gravitational physics simulation system built with **SDL3** and **OpenMP**. It simulates galactic evolution and celestial disintegration via the **Roche Limit**, and features a hardcore flight simulator based on SpaceX **Starship** specifications.
@@ -194,12 +201,3 @@ Metal : 使用Metal计算
 # 编译示例 (Linux/macOS)
 g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 ```
-
-##Realtime Shader
-<img width="1624" height="997" alt="Screenshot 2026-02-26 at 13 40 12" src="https://github.com/user-attachments/assets/d958744d-a707-4fa5-b22c-8a0382825ed4" />
-<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 51 23" src="https://github.com/user-attachments/assets/74107401-bdd9-4030-908a-432c15c21165" />
-<img width="3248" height="1994" alt="Screenshot 2026-03-02 at 22 09 57" src="https://github.com/user-attachments/assets/19f8d090-0de4-469e-be92-0266c44138db" />
-<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 27 51" src="https://github.com/user-attachments/assets/dca73026-8b28-4366-bddb-e01b9e7c8543" />
-<img width="3248" height="1996" alt="Screenshot 2026-05-02 at 18 02 22" src="https://github.com/user-attachments/assets/b3e1bdad-c0ce-42e6-8504-e0de381b0844" />
-
-
