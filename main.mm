@@ -1616,7 +1616,7 @@ void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg) {
     double r = p.r * focal_length / (p.sz + 1e-6);
     if (r <= 0 || p.sz <= 0) return;
 
-    int glow_limit = r * 8; // 稍微降一点，性能更稳
+    int glow_limit = r * 8;
 
     int start_i = max(-glow_limit, (int)-p.sx);
     int end_i   = min(glow_limit,  (int)(width - p.sx));
@@ -1632,19 +1632,14 @@ void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg) {
         int jj = j * j;
         for (int i = start_i; i <= end_i; i++) {
             int dist_sq = i * i + jj;
-            // 圆形裁剪（减少约 20~30% 像素）
             if (dist_sq > glow_limit * glow_limit) continue;
             double norm_dist_sq = dist_sq * inv_r2;
             double intensity;
 
             if (norm_dist_sq < 1.0) {
-                // 内核（避免 sqrt）
                 intensity = 1.5 - 0.5 * norm_dist_sq;
             } else {
-                // 外光晕（完全平方版本）
                 intensity = 1.0 / (norm_dist_sq * 0.8 + 0.2);
-
-                // 软边（不用 sqrt）
                 double fade = 1.0 - (dist_sq * inv_glow * inv_glow);
                 if (fade < 0) continue;
 
