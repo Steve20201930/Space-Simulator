@@ -105,7 +105,7 @@ int main()
     // planet.push_back({"Planet",100,0,0,2,0,0,1000,10,5,197,245,255});
     //Initial
     cam={0,0,-200,0,0,60,0,0,0};
-    SDL_Window* win=SDL_CreateWindow("Gravity system",width,height,SDL_WINDOW_RESIZABLE);
+    SDL_Window* win=SDL_CreateWindow("Gravity system v2.2.2",width,height,SDL_WINDOW_RESIZABLE);
     SDL_Renderer* ren=SDL_CreateRenderer(win,nullptr);
     SDL_SetWindowPosition(win,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
     SDL_SetWindowRelativeMouseMode(win, true);
@@ -174,7 +174,11 @@ int main()
                             accelerate+=5;
                         }
                         else dt*=0.1;
-                    }else if(event.key.key==SDLK_P&&acceleration<200000000.0){
+                    }else if(event.key.key==SDLK_LEFT){
+                        cam.fov=max(20.0,cam.fov-10.0);
+                    }else if(event.key.key==SDLK_RIGHT){
+                        cam.fov=min(160.0,cam.fov+10.0);
+                    }else if(event.key.key==SDLK_P){
                         acceleration*=10;
                     }else if(event.key.key==SDLK_O&&acceleration>0.2){
                         acceleration*=0.1;
@@ -311,7 +315,13 @@ int main()
                         double rz = dry * sin(b) + rz1 * cos(b);
                         double view_dist = sqrt(rx * rx + ry * ry + rz * rz) + ess;
                         double k = 0.05;
-                        stellar_intensity = 1.0 / (1.0 + log10(dr / planet[i].radius + 1.0) * k);
+                        
+                        float d = dr / planet[i].radius;
+                        double I0 = 1000000.0;
+                        double physical_intensity = I0 / (d * d + 1.0);
+                        float scale = 2.0f;
+                        stellar_intensity = max(1.0,log10(physical_intensity * scale + 1.0) / log10(I0 * scale + 1.0));
+                        
                         lx += stellar_intensity * rx / view_dist;
                         ly += stellar_intensity * -ry / view_dist;
                         lz += stellar_intensity * -rz / view_dist;
@@ -570,23 +580,33 @@ void position_movement_METAL(vector<particle> &planet,vector<double> &newx,vecto
         planet[cur].z=newz[cur];
     }
     
-    vector<float> nx(planet.size());
-    vector<float> ny(planet.size());
-    vector<float> nz(planet.size());
-    vector<float> vx(planet.size());
-    vector<float> vy(planet.size());
-    vector<float> vz(planet.size());
-    vector<float> ax(planet.size());
-    vector<float> ay(planet.size());
-    vector<float> az(planet.size());
-    vector<float> mass(planet.size());
-    vector<float> radius(planet.size());
-    
     float nG=G;
     long N=planet.size();
     float ndt=dt;
     
-    if(N==0)return;
+    if(N<=0)return;
+    
+    static id<MTLBuffer> s_bufnx, s_bufny, s_bufnz, s_bufvx, s_bufvy, s_bufvz,s_bufax, s_bufay, s_bufaz, s_bufmass, s_bufradius;
+    static long s_lastCapacity = 0;
+    
+    if (N > s_lastCapacity) {
+        long newCapacity = N + 500;
+        s_bufnx = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufny = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufnz = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufvx = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufvy = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufvz = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufax = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufay = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufaz = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufmass = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_bufradius = [device newBufferWithLength:sizeof(float)*newCapacity options:MTLResourceStorageModeShared];
+        s_lastCapacity = newCapacity;
+    }
+    
+    vector<float> nx(N), ny(N), nz(N), vx(N), vy(N), vz(N), ax(N), ay(N), az(N), mass(N), radius(N);
+    
     for(int i=0;i<planet.size();i++){
         nx[i]=planet[i].x;
         ny[i]=planet[i].y;
@@ -601,48 +621,37 @@ void position_movement_METAL(vector<particle> &planet,vector<double> &newx,vecto
         radius[i]=planet[i].radius;
     }
     
-    id<MTLBuffer> bufnx=[device newBufferWithBytes:nx.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufny=[device newBufferWithBytes:ny.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufnz=[device newBufferWithBytes:nz.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    
-    id<MTLBuffer> bufvx=[device newBufferWithBytes:vx.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufvy=[device newBufferWithBytes:vy.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufvz=[device newBufferWithBytes:vz.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    
-    id<MTLBuffer> bufax=[device newBufferWithBytes:ax.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufay=[device newBufferWithBytes:ay.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufaz=[device newBufferWithBytes:az.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    
-    id<MTLBuffer> bufmass=[device newBufferWithBytes:mass.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufradius=[device newBufferWithBytes:radius.data() length:sizeof(float)*N options:MTLResourceStorageModeShared];
-    
-    id<MTLBuffer> bufdt=[device newBufferWithBytes:&ndt length:sizeof(float) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufN=[device newBufferWithBytes:&N length:sizeof(long) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufG=[device newBufferWithBytes:&nG length:sizeof(float) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> bufShip=[device newBufferWithBytes:&SpaceShipMode length:sizeof(bool) options:MTLResourceStorageModeShared];
-    
-    
+    memcpy(s_bufnx.contents, nx.data(), sizeof(float)*N);
+    memcpy(s_bufny.contents, ny.data(), sizeof(float)*N);
+    memcpy(s_bufnz.contents, nz.data(), sizeof(float)*N);
+    memcpy(s_bufvx.contents, vx.data(), sizeof(float)*N);
+    memcpy(s_bufvy.contents, vy.data(), sizeof(float)*N);
+    memcpy(s_bufvz.contents, vz.data(), sizeof(float)*N);
+    memcpy(s_bufax.contents, ax.data(), sizeof(float)*N);
+    memcpy(s_bufay.contents, ay.data(), sizeof(float)*N);
+    memcpy(s_bufaz.contents, az.data(), sizeof(float)*N);
+    memcpy(s_bufmass.contents, mass.data(), sizeof(float)*N);
+    memcpy(s_bufradius.contents, radius.data(), sizeof(float)*N);
     
     id<MTLCommandBuffer> cmd=[queuea commandBuffer];
     id<MTLComputeCommandEncoder> enc=[cmd computeCommandEncoder];
     
     [enc setComputePipelineState:pipeline];
-    [enc setBuffer:bufnx offset:0 atIndex:0];
-    [enc setBuffer:bufny offset:0 atIndex:1];
-    [enc setBuffer:bufnz offset:0 atIndex:2];
-    [enc setBuffer:bufvx offset:0 atIndex:3];
-    [enc setBuffer:bufvy offset:0 atIndex:4];
-    [enc setBuffer:bufvz offset:0 atIndex:5];
-    [enc setBuffer:bufax offset:0 atIndex:6];
-    [enc setBuffer:bufay offset:0 atIndex:7];
-    [enc setBuffer:bufaz offset:0 atIndex:8];
-    [enc setBuffer:bufdt offset:0 atIndex:9];
-    [enc setBuffer:bufmass offset:0 atIndex:10];
-    [enc setBuffer:bufradius offset:0 atIndex:11];
-    [enc setBuffer:bufN offset:0 atIndex:12];
-    [enc setBuffer:bufG offset:0 atIndex:13];
-    [enc setBuffer:bufShip offset:0 atIndex:14];
-    
+    [enc setBuffer:s_bufnx offset:0 atIndex:0];
+    [enc setBuffer:s_bufny offset:0 atIndex:1];
+    [enc setBuffer:s_bufnz offset:0 atIndex:2];
+    [enc setBuffer:s_bufvx offset:0 atIndex:3];
+    [enc setBuffer:s_bufvy offset:0 atIndex:4];
+    [enc setBuffer:s_bufvz offset:0 atIndex:5];
+    [enc setBuffer:s_bufax offset:0 atIndex:6];
+    [enc setBuffer:s_bufay offset:0 atIndex:7];
+    [enc setBuffer:s_bufaz offset:0 atIndex:8];
+    [enc setBytes:&ndt length:sizeof(float) atIndex:9];
+    [enc setBuffer:s_bufmass offset:0 atIndex:10];
+    [enc setBuffer:s_bufradius offset:0 atIndex:11];
+    [enc setBytes:&N length:sizeof(long) atIndex:12];
+    [enc setBytes:&nG length:sizeof(float) atIndex:13];
+    [enc setBytes:&SpaceShipMode length:sizeof(bool) atIndex:14];
     
     MTLSize gridSize=MTLSizeMake(N,1,1);
     NSUInteger maxThreads = pipeline.maxTotalThreadsPerThreadgroup;
@@ -653,12 +662,12 @@ void position_movement_METAL(vector<particle> &planet,vector<double> &newx,vecto
     [cmd commit];
     [cmd waitUntilCompleted];
     
-    float* rvx=(float*)bufvx.contents;
-    float* rvy=(float*)bufvy.contents;
-    float* rvz=(float*)bufvz.contents;
-    float* rax=(float*)bufax.contents;
-    float* ray=(float*)bufay.contents;
-    float* raz=(float*)bufaz.contents;
+    float* rvx=(float*)s_bufvx.contents;
+    float* rvy=(float*)s_bufvy.contents;
+    float* rvz=(float*)s_bufvz.contents;
+    float* rax=(float*)s_bufax.contents;
+    float* ray=(float*)s_bufay.contents;
+    float* raz=(float*)s_bufaz.contents;
     
     for(int i=0;i<N;i++){
         //Backput Position
@@ -701,7 +710,12 @@ void save(vector<particle> p){
             <<p[i].vx<<' '<<p[i].vy<<' '<<p[i].vz<<' '
             <<p[i].ax<<' '<<p[i].ay<<' '<<p[i].az<<' '
             <<p[i].mass<<' '<<p[i].radius<<' '
-            <<p[i].c1<<' '<<p[i].c2<<' '<<p[i].c3<<' '<<p[i].c4<<endl;
+            <<p[i].c1<<' '<<p[i].c2<<' '<<p[i].c3<<' '<<p[i].c4<<' ';
+        if(p[i].stellar==true){
+            file<<1<<endl;
+        }else{
+            file<<0<<endl;
+        }
     }
     file.close();
 }
@@ -1539,6 +1553,9 @@ void DrawTrajectorySystem(SDL_Renderer* ren,double proj,vector<particle> p, came
     }
 }
 void DrawCircleShader(SDL_Renderer* ren,projection p,double fov_deg,bool Target,double lx,double ly,double lz,double stellar_intensity){
+    static double rotation_time = 0;
+    rotation_time += dt * 0.0005;
+    
     double fov_rad=fov_deg*(M_PI/180.0);
     double focal_length=height/(2.0*tan(fov_rad*0.5));
     int r=(int)(p.r*focal_length/(p.sz+ess));
@@ -1556,10 +1573,11 @@ void DrawCircleShader(SDL_Renderer* ren,projection p,double fov_deg,bool Target,
                 double nx=(double)i/r;
                 double ny=(double)j/r;
                 double nz=sqrt(1.0-(nx*nx+ny*ny));
-                
+
                 double intensity=nx*lx+ny*ly+nz*lz;
                 intensity*=stellar_intensity;
                 if(intensity<0)intensity=abs(intensity*0.03);
+                
                 SDL_SetRenderDrawColor(ren, intensity*p.c1, intensity*p.c2, intensity*p.c3, p.c4);
                 SDL_RenderPoint(ren,p.sx+i,p.sy+j);
             }
@@ -1616,7 +1634,7 @@ void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg) {
     double r = p.r * focal_length / (p.sz + 1e-6);
     if (r <= 0 || p.sz <= 0) return;
 
-    int glow_limit = r * 8;
+    int glow_limit = r * 8; // 稍微降一点，性能更稳
 
     int start_i = max(-glow_limit, (int)-p.sx);
     int end_i   = min(glow_limit,  (int)(width - p.sx));
@@ -1632,14 +1650,19 @@ void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg) {
         int jj = j * j;
         for (int i = start_i; i <= end_i; i++) {
             int dist_sq = i * i + jj;
+            // 圆形裁剪（减少约 20~30% 像素）
             if (dist_sq > glow_limit * glow_limit) continue;
             double norm_dist_sq = dist_sq * inv_r2;
             double intensity;
 
             if (norm_dist_sq < 1.0) {
+                // 内核（避免 sqrt）
                 intensity = 1.5 - 0.5 * norm_dist_sq;
             } else {
+                // 外光晕（完全平方版本）
                 intensity = 1.0 / (norm_dist_sq * 0.8 + 0.2);
+
+                // 软边（不用 sqrt）
                 double fade = 1.0 - (dist_sq * inv_glow * inv_glow);
                 if (fade < 0) continue;
 
@@ -1648,11 +1671,11 @@ void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg) {
 
             if (intensity <= 0.01) continue;
 
-            int boost = (intensity > 1.0) ? (int)((intensity - 1.0) * 255) : 0;
+            double intensity_clamped = min(intensity, 2.0);
 
-            int final_r = p.c1 * intensity + boost;
-            int final_g = p.c2 * intensity + boost;
-            int final_b = p.c3 * intensity + boost;
+            int final_r = (int)(p.c1 * intensity_clamped);
+            int final_g = (int)(p.c2 * intensity_clamped);
+            int final_b = (int)(p.c3 * intensity_clamped);
 
             if (final_r > 255) final_r = 255;
             if (final_g > 255) final_g = 255;
