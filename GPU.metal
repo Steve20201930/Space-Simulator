@@ -1,10 +1,3 @@
-//
-//  pos2.mm
-//  Space Simulator App
-//
-//  Created by Steve William on 2/27/26.
-//
-
 #include <metal_stdlib>
 using namespace metal;
 kernel void comp(device const float* newx[[buffer(0)]],
@@ -16,10 +9,10 @@ kernel void comp(device const float* newx[[buffer(0)]],
                  device float* ax[[buffer(6)]],
                  device float* ay[[buffer(7)]],
                  device float* az[[buffer(8)]],
-                 device float* dt[[buffer(9)]],
+                 constant float& dt[[buffer(9)]],
                  device float* mass[[buffer(10)]],
                  device float* radius[[buffer(11)]],
-                 device long* N[[buffer(12)]],
+                 constant float& N[[buffer(12)]],
                  device const float* G[[buffer(13)]],
                  device const bool* SpaceShipMode[[buffer(14)]],
                  uint id [[thread_position_in_grid]]
@@ -28,7 +21,7 @@ kernel void comp(device const float* newx[[buffer(0)]],
     float newax=0;
     float neway=0;
     float newaz=0;
-    for(long i=0;i<*N;i++){
+    for(long i=0;i<N;i++){
         if(i==id)continue;
         float dx=newx[i]-newx[id];
         float dy=newy[i]-newy[id];
@@ -44,9 +37,9 @@ kernel void comp(device const float* newx[[buffer(0)]],
         neway+=dy*cF;
         newaz+=dz*cF;
     }
-    vx[id]+=0.5*(ax[id]+newax)* *dt;
-    vy[id]+=0.5*(ay[id]+neway)* *dt;
-    vz[id]+=0.5*(az[id]+newaz)* *dt;
+    vx[id]+=0.5*(ax[id]+newax)*dt;
+    vy[id]+=0.5*(ay[id]+neway)*dt;
+    vz[id]+=0.5*(az[id]+newaz)*dt;
     
     ax[id]=newax;
     ay[id]=neway;
