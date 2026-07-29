@@ -1,3 +1,10 @@
+//
+//  pos2.mm
+//  Space Simulator App
+//
+//  Created by Steve William on 2/27/26.
+//
+
 #include <metal_stdlib>
 using namespace metal;
 kernel void comp(device const float* newx[[buffer(0)]],
@@ -12,7 +19,7 @@ kernel void comp(device const float* newx[[buffer(0)]],
                  constant float& dt[[buffer(9)]],
                  device float* mass[[buffer(10)]],
                  device float* radius[[buffer(11)]],
-                 constant float& N[[buffer(12)]],
+                 constant long& N[[buffer(12)]],
                  device const float* G[[buffer(13)]],
                  device const bool* SpaceShipMode[[buffer(14)]],
                  uint id [[thread_position_in_grid]]
