@@ -69,7 +69,7 @@ milkyway3 : Full Milky Way simulation, includes all stars. Includes 451,264 star
 * `newg [Value]` : Modify the Universal Gravitational Constant $G$.
 * `roche` : Toggle the Roche Limit fragmentation effect.
 * `save` : Save the current system state locally.
-* `newrocheK [Value]` : Modify Roche Limit coefficient (Default: 1.26).
+* `newrochek [Value]` : Modify Roche Limit coefficient (Default: 1.26).
 * `newdnum [Value]` : Modify number of fragments upon disintegration (Default: 2).
 * `newdsize [Value]` : Modify size of fragments (Default: 1.0).
 * `debug` : Toggle Debug Mode.
@@ -171,7 +171,7 @@ milkyway3 : 完全模拟银河系，包含所有恒星与行星。包含 451,264
 * `newg [Value]` : 修改万有引力常数 $G$。
 * `roche` : 开启/关闭洛希极限粉碎效果。
 * `save` : 保存当前系统状态到本地。
-* `newrocheK [Value]` : 修改洛希极限参数,默认为1.26
+* `newrochek [Value]` : 修改洛希极限参数,默认为1.26
 * `newdnum [Value]` : 修改行星解体数量,默认为2
 * `newdsize [Value]` : 修改行星解体后碎片尺寸,默认为1.0
 * `debug` : 开启/关闭Debug模式
