@@ -4,6 +4,8 @@
 <img width="3248" height="1994" alt="Screenshot 2026-03-02 at 22 09 57" src="https://github.com/user-attachments/assets/19f8d090-0de4-469e-be92-0266c44138db" />
 <img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 27 51" src="https://github.com/user-attachments/assets/dca73026-8b28-4366-bddb-e01b9e7c8543" />
 <img width="3248" height="1996" alt="Screenshot 2026-05-02 at 18 02 22" src="https://github.com/user-attachments/assets/b3e1bdad-c0ce-42e6-8504-e0de381b0844" />
+<img width="3248" height="1990" alt="Screenshot 2026-08-29 at 14 51 38" src="https://github.com/user-attachments/assets/5b1d4274-c053-4b91-8960-b8b2a27885b6" />
+
 
 # Gravity-System & SpaceShip Simulator 🚀
 
