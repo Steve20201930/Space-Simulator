@@ -80,7 +80,8 @@ milkyway3 : Full Milky Way simulation, includes all stars. Includes 451,264 star
 * `in/out [Method]` : Use different method to compute, default in CPU.(Enable/Disable)
 ```bash
 [Method]
-Metal : Use Metal to compute
+Metal : Use Metal which in M series chip to compute
+CUDA : Use NVIDIA GPU which supported CUDA to compute
 ```
 * `autodt` : Enable/Disable time changing method
 * `perform [Value]` :
@@ -181,7 +182,8 @@ milkyway3 : 完全模拟银河系，包含所有恒星与行星。包含 451,264
 * `in/out [method]` : 使用不同方法计算,默认在CPU计算(开启/关闭)
 ```bash
 [method]
-Metal : 使用Metal计算
+Metal : 使用M芯片的Metal计算
+CUDA : 使用支持CUDA的英伟达显卡计算
 ```
 * `autodt` : 开启/关闭 自动时间管理
 * `perform [Value]` :
