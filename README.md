@@ -1,10 +1,11 @@
 ## Realtime Shader
 <img width="3248" height="1996" alt="Screenshot 2026-07-29 at 15 22 43" src="https://github.com/user-attachments/assets/de0d43c8-0a80-420f-9fc9-eaac44da7087" />
+<img width="3248" height="1998" alt="Screenshot 2026-08-29 at 17 31 55" src="https://github.com/user-attachments/assets/d6a3206d-b8fc-42ef-91b9-22ffa85227b1" />
 <img width="3248" height="1996" alt="Screenshot 2026-07-29 at 15 32 20" src="https://github.com/user-attachments/assets/1421d75a-f0a2-4850-85a4-f9e394ddeb49" />
 <img width="3248" height="1994" alt="Screenshot 2026-03-02 at 22 09 57" src="https://github.com/user-attachments/assets/19f8d090-0de4-469e-be92-0266c44138db" />
 <img width="3248" height="1996" alt="Screenshot 2026-05-02 at 17 27 51" src="https://github.com/user-attachments/assets/dca73026-8b28-4366-bddb-e01b9e7c8543" />
 <img width="3248" height="1996" alt="Screenshot 2026-05-02 at 18 02 22" src="https://github.com/user-attachments/assets/b3e1bdad-c0ce-42e6-8504-e0de381b0844" />
-<img width="3248" height="1990" alt="Screenshot 2026-08-29 at 14 51 38" src="https://github.com/user-attachments/assets/5b1d4274-c053-4b91-8960-b8b2a27885b6" />
+
 
 
 # Gravity-System & SpaceShip Simulator 🚀
@@ -57,8 +58,11 @@ Press `T` to enter the console, then type:
 [Model]
 solar : Include the basis solar system with 8 planet.
 (<=v2.2.1)solarcompletely / (>=v2.2.2)solar2: Include the basis solar system and sapturnus ring. Only recommended for the powerful computer to load!!!
-(>=v2.2.2)solar3 : Includes the moons of the primary planet, Saturn's rings, and the asteroid belt. Only recommended for the powerful computer to load!!!
-(>=v2.2.2)J2000 : January 1, 2000, 11:58:55.816 Basic Star and Planetary Positions.
+solar3 : Includes the moons of the primary planet, Saturn's rings, and the asteroid belt. Only recommended for the powerful computer to load!!!
+J2000 : January 1, 2000, 11:58:55.816 Basic Star and Planetary Positions.
+milkyway1 : Lite Milky Way simulation, only includes important stars. Includes 18,437 stars.
+milkyway2 : Medium Milky Way simulation, almost includes all the stars. Includes 73,135 stars. (Recommended for all the users).
+milkyway3 : Full Milky Way simulation, includes all stars. Includes 451,264 stars. (Only recommended for the super computer).
 ```
 * `target [Name]` : Lock onto a body and move relative to its frame.
 * `goto [Name]` : Teleport camera to a specific celestial body.
@@ -155,8 +159,11 @@ g++ -O3 -std=c++17 main.cpp -o gravity_sim -lSDL3 -lm -fopenmp
 [Model]
 solar : 包含基础太阳系八大行星.
 （<=v2.2.1）solarcompletely / （>=v2.2.2）solar2：包含基础太阳系和土星环。仅推荐高性能电脑加载！！！
-（>=v2.2.2）solar3：包含主行星的卫星、土星环和小行星带。仅推荐高性能电脑加载！！！
-（>=v2.2.2）J2000：2000年1月1日 11:58:55.816 基本恒星和行星位置。
+solar3：包含主行星的卫星、土星环和小行星带。仅推荐高性能电脑加载！！！
+J2000：2000年1月1日 11:58:55.816 基本恒星和行星位置。
+milkyway1 : 简单模拟银河系, 仅包含一些重要恒星。包含 18,437 颗恒星与行星。
+milkyway2 : 中度模拟银河系，几乎包含所有恒星与行星。包含 73,135 颗恒星与行星. （推荐所有用户均可尝试）。
+milkyway3 : 完全模拟银河系，包含所有恒星与行星。包含 451,264 颗恒星与行星. （仅推荐超级电脑尝试）。
 ```
 * `target [Name]` : 锁定特定天体并进入其内部跟随其移动。
 * `goto [Name]` : 瞬间移动摄像机至该天体。
