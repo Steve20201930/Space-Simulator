@@ -81,6 +81,7 @@ milkyway3 : Full Milky Way simulation, includes all stars. Includes 451,264 star
 * `clearmyship` : Reset all Starship parameters.
 * `[Quantity]` : Input a planet with its full parameters. The standard format is: [Name] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [Mass] [Radius] [R] [G] [B] [Transparency] [Is stellar?(true/false)]
 * `shader` : Active/Inactive realtime shader
+* `rtx` : Active/Inactive realtime RTX computing(Recommend running over GPU computing)
 * `in/out [Method]` : Use different method to compute, default in CPU.(Enable/Disable)
 ```bash
 [Method]
@@ -183,6 +184,7 @@ milkyway3 : 完全模拟银河系，包含所有恒星与行星。包含 451,264
 * `clearmyship` : 清空星舰所有参数
 * `[Quantity]` : 输入行星以及各种参数,标准格式为: [名称] [x] [y] [z] [vx] [vy] [vz] [ax] [ay] [az] [质量] [半径] [R] [G] [B] [透明度] [是否为恒星(true/false)]
 * `shader` : 开启或关闭实时光影
+* `rtx` : 开启或关闭实时光线追踪（推荐在GPU计算下开启）
 * `in/out [method]` : 使用不同方法计算,默认在CPU计算(开启/关闭)
 ```bash
 [method]
