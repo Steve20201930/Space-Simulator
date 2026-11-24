@@ -17,6 +17,7 @@ struct projection{
     float x,y,z;
     int c1,c2,c3,c4;
     float r;
+    float reflection = 0.5;
 };
 struct camera{
     float x,y,z;
@@ -184,15 +185,16 @@ void RTXBVHRayForIntersect(device const projection *parti, device const metalBVH
     }
     return ;
 }
-void RTXBVHRayForShadow(device const projection *parti, device const metalBVHNode &rBVH, const RTXV vector, thread const RTXV &camera, device const metalBVHNode *BVHCollector, const int BVHCollectorSize, thread const int nearestPlanet, thread const RTXV &M, thread const RTXV &MS, thread const float &MSLength, thread float &k, thread int sunIndex){
-    if(k == 0.02)return ;
+void RTXBVHRayForShadow(device const projection *parti, device const metalBVHNode &rBVH, const RTXV vector, thread const RTXV &camera, device const metalBVHNode *BVHCollector, const int BVHCollectorSize, thread const int nearestPlanet, thread const RTXV &M, thread const RTXV &MS, thread const float &MSLength, thread float &k, thread int sunIndex, thread float SSAOI){
+    
+    if(k == SSAOI)return;
     if(rBVH.left == -1 && rBVH.right == -1){
         for(int i = 0;i < rBVH.count;i++){
             long p = rBVH.indices[i];
             if(p == nearestPlanet || p == sunIndex)continue;
             RTXV Shadow = RTXVectorCalcM(MS, M, {parti[p].x, parti[p].y, parti[p].z}, parti[p].r, MSLength);
             if(Shadow.intersect && Shadow.OM < MSLength && Shadow.OM > 0){
-                k = 0.02;
+                k = SSAOI;
                 break;
             }
         }
@@ -200,17 +202,18 @@ void RTXBVHRayForShadow(device const projection *parti, device const metalBVHNod
     }
     if(rBVH.left != -1){
         if(RTXBVHRayAABB(BVHCollector[rBVH.left], vector, camera)){
-            RTXBVHRayForShadow(parti, BVHCollector[rBVH.left], vector, camera, BVHCollector, BVHCollectorSize, nearestPlanet, M, MS, MSLength, k, sunIndex);
+            RTXBVHRayForShadow(parti, BVHCollector[rBVH.left], vector, camera, BVHCollector, BVHCollectorSize, nearestPlanet, M, MS, MSLength, k, sunIndex, SSAOI);
         }
     }
     if(rBVH.right != -1){
         if(RTXBVHRayAABB(BVHCollector[rBVH.right], vector, camera)){
-            RTXBVHRayForShadow(parti, BVHCollector[rBVH.right], vector, camera, BVHCollector, BVHCollectorSize, nearestPlanet, M, MS, MSLength, k, sunIndex);
+            RTXBVHRayForShadow(parti, BVHCollector[rBVH.right], vector, camera, BVHCollector, BVHCollectorSize, nearestPlanet, M, MS, MSLength, k, sunIndex, SSAOI);
         }
     }
     return ;
 }
-void StellarHaloDetect(device const projection *parti, device const int *suns, long suns_size, const RTXV vector, const RTXV camera, device uint8_t &R, device uint8_t &G, device uint8_t &B){
+
+void StellarHaloDetect(device const projection *parti, device const int *suns, long suns_size, const RTXV vector, const RTXV camera, thread uint8_t &R, thread uint8_t &G, thread uint8_t &B){
     for(long i = 0;i < suns_size;i++){
         long p = suns[i];
         
@@ -249,6 +252,7 @@ kernel void RTXPath(
                     
                     device const metalBVHNode *metalBVHCollector,
                     device const int *metalBVHCollectorSize,
+                    device const int *RTXReflect,
                     
                     device uint8_t *R,
                     device uint8_t *G,
@@ -272,7 +276,11 @@ kernel void RTXPath(
         }
     }
     if(nearestPlanet == -1 || isStellar){
-        StellarHaloDetect(parti, suns, *suns_size, RTXVector[index], {cam->x, cam->y, cam->z}, R[index], G[index], B[index]);
+        uint8_t SR = 0, SG = 0, SB = 0;
+        StellarHaloDetect(parti, suns, *suns_size, RTXVector[index], {cam->x, cam->y, cam->z}, SR, SG, SB);
+        R[index] = SR;
+        G[index] = SG;
+        B[index] = SB;
         return ;
     }
     /* Light Magnitude & Shadow Calc*/
@@ -282,6 +290,7 @@ kernel void RTXPath(
         (M.z - parti[nearestPlanet].z)/parti[nearestPlanet].r,
     };
     float I = 0;
+    float SSAOI = 0.10;
     for(int i = 0;i < *suns_size;i++){
         RTXV MS = {
             parti[suns[i]].x - M.x,
@@ -299,10 +308,106 @@ kernel void RTXPath(
             MS.z/MSLength
         };
         float k = 1.0;
-        RTXBVHRayForShadow(parti, metalBVHCollector[0], MS, M, metalBVHCollector, *metalBVHCollectorSize, nearestPlanet, M, MS, MSLength, k, suns[i]);
-        I += max(Npm.x * Nps.x + Npm.y * Nps.y + Npm.z * Nps.z, 0.0) * k;
+        RTXBVHRayForShadow(parti, metalBVHCollector[0], MS, M, metalBVHCollector, *metalBVHCollectorSize, nearestPlanet, M, MS, MSLength, k, suns[i], SSAOI);
+        I += max(Npm.x * Nps.x + Npm.y * Nps.y + Npm.z * Nps.z, 0.0) * (1 - SSAOI) * k + SSAOI;
+        R[index] += clamp(
+                         ((parti[suns[i]].c1 - parti[nearestPlanet].c1) * 0.05 + parti[nearestPlanet].c1) * I
+                         ,0.0f,255.0f);
+        G[index] += clamp(
+                          ((parti[suns[i]].c2 - parti[nearestPlanet].c2) * 0.05 + parti[nearestPlanet].c2) * I
+                          ,0.0f,255.0f);
+        B[index] += clamp(
+                          ((parti[suns[i]].c3 - parti[nearestPlanet].c3) * 0.05 + parti[nearestPlanet].c3) * I
+                          ,0.0f,255.0f);
     }
-    R[index] = clamp(parti[nearestPlanet].c1 * I,0.0f,255.0f);
-    G[index] = clamp(parti[nearestPlanet].c2 * I,0.0f,255.0f);
-    B[index] = clamp(parti[nearestPlanet].c3 * I,0.0f,255.0f);
+    
+    if(*RTXReflect > 1){
+        RTXV MrPre = M;
+        RTXV Mr;
+        RTXV DirectVector = RTXVector[index];
+        projection PreP = parti[nearestPlanet];
+        float WR = 1.0;
+        float RRefPre = R[index], GRefPre = G[index], BRefPre = B[index];
+        float RR = R[index], GG = G[index], BB = B[index];
+        for(int r = 1;r < *RTXReflect;r++){
+            WR *= PreP.reflection;
+            
+            RTXV N = VectorMul(
+                               {MrPre.x - PreP.x, MrPre.y - PreP.y, MrPre.z - PreP.z},
+                               1 / PreP.r
+                               );
+            RTXV ReflectVector = VectorPlus(DirectVector, VectorMul(N, VectorDotMul(DirectVector, N) * (-2)));
+            DirectVector = ReflectVector;
+            float nearestOMRef = INFINITY;
+            int nearestPlanetRef = -1;
+            RTXBVHRayForIntersect(parti, metalBVHCollector[0], ReflectVector, MrPre, metalBVHCollector, *metalBVHCollectorSize, nearestOMRef, nearestPlanetRef, Mr, VectorLength(ReflectVector));
+            bool isStellarRef = false;
+            for(long i = 0;i < *suns_size;i++){
+                if(suns[i] == nearestPlanetRef){
+                    isStellarRef = true;
+                    break;
+                }
+            }
+            if(nearestPlanetRef == -1 || isStellarRef){
+                uint8_t SR = 0, SG = 0, SB = 0;
+                StellarHaloDetect(parti, suns, *suns_size, ReflectVector, MrPre, SR, SG, SB);
+                RR += (float(SR) - RRefPre) * WR;
+                GG += (float(SG) - GRefPre) * WR;
+                BB += (float(SB) - BRefPre) * WR;
+                break;
+            }
+            MrPre = Mr;
+            PreP = parti[nearestPlanetRef];
+            /* Light Magnitude */
+            RTXV NpmRef = {
+                (Mr.x - parti[nearestPlanetRef].x)/parti[nearestPlanetRef].r,
+                (Mr.y - parti[nearestPlanetRef].y)/parti[nearestPlanetRef].r,
+                (Mr.z - parti[nearestPlanetRef].z)/parti[nearestPlanetRef].r
+            };
+            
+            float3 RefColor = float3(0.0f);
+            for(int i = 0;i < *suns_size;i++){
+                float PSRef = fast::sqrt(
+                                         pow(parti[suns[i]].x - parti[nearestPlanetRef].x, 2) + pow(parti[suns[i]].y - parti[nearestPlanetRef].y, 2) + pow(parti[suns[i]].z - parti[nearestPlanetRef].z, 2)
+                                         );
+                RTXV NpsRef = {
+                    (parti[suns[i]].x - parti[nearestPlanetRef].x)/PSRef,
+                    (parti[suns[i]].y - parti[nearestPlanetRef].y)/PSRef,
+                    (parti[suns[i]].z - parti[nearestPlanetRef].z)/PSRef,
+                };
+                float MSLengthRef = fast::sqrt(
+                                         pow((parti[suns[i]].x - Mr.x), 2) +
+                                         pow((parti[suns[i]].y - Mr.y), 2) +
+                                         pow((parti[suns[i]].z - Mr.z), 2)
+                                         );
+                RTXV MSRef = {
+                    parti[suns[i]].x - Mr.x,
+                    parti[suns[i]].y - Mr.y,
+                    parti[suns[i]].z - Mr.z,
+                };
+                float k = 1.0;
+                float Ir = max(
+                               VectorDotMul(NpmRef, NpsRef) * (1.0f - SSAOI) + SSAOI,
+                               0.0f
+                               );
+                RTXBVHRayForShadow(parti, metalBVHCollector[0], MSRef, Mr, metalBVHCollector, *metalBVHCollectorSize, nearestPlanetRef, Mr, MSRef, MSLengthRef, k, suns[i], SSAOI);
+                Ir += max((NpmRef.x * NpsRef.x + NpmRef.y * NpsRef.y + NpmRef.z * NpsRef.z) * (1 - SSAOI) * k + SSAOI, 0.0);
+                if(k < 1.0f)Ir = SSAOI;
+                
+                RefColor += float3((parti[suns[i]].c1 - parti[nearestPlanetRef].c1) * 0.05 + parti[nearestPlanetRef].c1,
+                (parti[suns[i]].c2 - parti[nearestPlanetRef].c2) * 0.05 + parti[nearestPlanetRef].c2,
+                (parti[suns[i]].c3 - parti[nearestPlanetRef].c3) * 0.05 + parti[nearestPlanetRef].c3) * Ir;
+            }
+            RR += (RefColor.x - RRefPre) * WR;
+            GG += (RefColor.y - GRefPre) * WR;
+            BB += (RefColor.z - BRefPre) * WR;
+            
+            RRefPre = RefColor.x;
+            GRefPre = RefColor.y;
+            BRefPre = RefColor.z;
+        }
+        R[index] = uint8_t(clamp(RR, 0.0f, 255.0f));
+        G[index] = uint8_t(clamp(GG, 0.0f, 255.0f));
+        B[index] = uint8_t(clamp(BB, 0.0f, 255.0f));
+    }
 }
