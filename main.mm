@@ -39,6 +39,7 @@ struct particle{
     bool stellar;
     bool merged;
     double w = 2 * M_PI / 86400;
+    double reflection = 0.5;
 };
 struct camera{
     double x,y,z;
@@ -133,7 +134,7 @@ int main()
     // planet.push_back({"Planet",100,0,0,2,0,0,1000,10,5,197,245,255});
     //Initial
     cam={0,0,-200,0,0,60,0,0,0};
-    SDL_Window* win=SDL_CreateWindow("Space Sim ver2.3",width,height,SDL_WINDOW_RESIZABLE);
+    SDL_Window* win=SDL_CreateWindow("Space Sim ver2.3.1",width,height,SDL_WINDOW_RESIZABLE);
     SDL_Renderer* ren=SDL_CreateRenderer(win,nullptr);
     SDL_SetWindowPosition(win,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
     SDL_SetWindowRelativeMouseMode(win, true);
@@ -475,7 +476,7 @@ int main()
             string debug_buf3="RocheLimit:["+to_string(roche)+"] "+to_string(rocheK);
             string debug_buf4="G:"+toScientific(G, 4);
             string debug_buf5="SpaceShipMode:"+to_string(SpaceShipMode);
-            string debug_buf6="Shader: "+to_string(shader)+" RTX: "+to_string(rtx);
+            string debug_buf6="Shader: "+to_string(shader)+" RTX(ref:" + to_string(RTXReflect) + "): "+to_string(rtx);
             string debug_buf7="Perform: "+to_string(perform) + " GPU(METAL): "+to_string(isMetal);
             if(pause==true)debug_buf1+="  [PAUSE]";
             SDL_SetRenderDrawColor(ren,255,255,255,255);
@@ -1102,6 +1103,23 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
     if(n=="autodt"){
         AutoDTime=!AutoDTime;
         second=dt*fps;
+    }
+    if(n=="reflection"){
+        string ref;
+        ssin>>ref;
+        RTXReflect = stoi(ref);
+    }
+    if(n=="reflectionvalue"){
+        string name;
+        ssin>>name;
+        string value;
+        ssin>>value;
+        for(int i = 0;i < p.size();i++){
+            if(p[i].name == name){
+                p[i].reflection = stoi(value);
+                break;
+            }
+        }
     }
     if(isNumber(n)==false)return;
     
@@ -2160,6 +2178,7 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
     }
     RTXBVH(mainBVH, parti);
     
+    double SSAOI = 0.10;
     /* Ray out */
     vector<vector<Uint8>> Rbuf(height, vector<Uint8>(width, 0));
     vector<vector<Uint8>> Gbuf(height, vector<Uint8>(width, 0));
@@ -2172,7 +2191,7 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
             RTXBVHRay(index, BVHCollector[0], RTXVector[i][j], {cam.x, cam.y, cam.z});
             
             double nearestOM = INFINITY;
-            int nearestPlanet = -1;
+            long nearestPlanet = -1;
             RTXV M;
             for(int n = 0;n < index.size();n++){
                 long p = index[n];
@@ -2203,7 +2222,9 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
                              pow(parti[suns[0]].z - parti[nearestPlanet].z, 2)
                              );
             RTXV Nps = {(parti[suns[0]].x - parti[nearestPlanet].x)/PS, (parti[suns[0]].y - parti[nearestPlanet].y)/PS, (parti[suns[0]].z - parti[nearestPlanet].z)/PS};
-            double I = max(Npm.x * Nps.x + Npm.y * Nps.y + Npm.z * Nps.z, 0.0);
+            double I = max(
+                           (Npm.x * Nps.x + Npm.y * Nps.y + Npm.z * Nps.z) * (1 - SSAOI) + SSAOI
+                           , 0.0);
             
             /* Shadow Calc */
             double MSLength = sqrt(
@@ -2222,15 +2243,122 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
                 if(p == nearestPlanet || p == suns[0])continue;
                 RTXV Shadow = RTXVectorCalcM(MS, M, {parti[p].x, parti[p].y, parti[p].z}, parti[p].radius, MSLength);
                 if(Shadow.intersect && Shadow.OM < MSLength && Shadow.OM > 0){
-                    I = 0.02 * I;
+                    I = SSAOI;
                     break;
                 }
             }
-            
+
             /* RGB Calc */
-            Uint8 R = parti[nearestPlanet].c1 * I;
-            Uint8 G = parti[nearestPlanet].c2 * I;
-            Uint8 B = parti[nearestPlanet].c3 * I;
+            Uint8 R = ((parti[suns[0]].c1 - parti[nearestPlanet].c1) * 0.05 + parti[nearestPlanet].c1) * I;
+            Uint8 G = ((parti[suns[0]].c2 - parti[nearestPlanet].c2) * 0.05 + parti[nearestPlanet].c2) * I;
+            Uint8 B = ((parti[suns[0]].c3 - parti[nearestPlanet].c3) * 0.05 + parti[nearestPlanet].c3) * I;
+            
+            if(RTXReflect > 1){
+                vector<RTXV> Mr(RTXReflect);
+                Mr[0] = M;
+                vector<RTXV> DirectVector(RTXReflect);
+                DirectVector[0] = RTXVector[i][j];
+                vector<vector<long>> indexr(RTXReflect-1);
+                vector<particle> PreP(RTXReflect);
+                PreP[0] = parti[nearestPlanet];
+                double WR = 1.0;
+                double RRefPre = R, GRefPre = G, BRefPre = B;
+                double RR = R, GG = G, BB = B;
+                for(int r = 1;r < RTXReflect;r++){
+                    WR *= PreP[r-1].reflection;
+                    
+                    RTXV N = VectorMul({Mr[r-1].x - PreP[r-1].x, Mr[r-1].y - PreP[r-1].y, Mr[r-1].z - PreP[r-1].z}, 1/PreP[r-1].radius);
+                    
+                    RTXV ReflectVector = VectorUnit(VectorPlus(DirectVector[r-1], VectorMul(N, VectorDotMul(DirectVector[r-1], N) * (-2))));
+
+                    DirectVector[r] = ReflectVector;
+                    RTXBVHRay(indexr[r - 1], BVHCollector[0], ReflectVector, Mr[r - 1]);
+                    
+                    double nearestOMRef = INFINITY;
+                    long nearestPlanetRef = -1;
+                    for(int n = 0;n < indexr[r-1].size();n++){
+                        long p = indexr[r - 1][n];
+                        RTXV Mcandi = RTXVectorCalcM(ReflectVector, Mr[r - 1], {parti[p].x, parti[p].y, parti[p].z}, parti[p].radius, VectorLength(ReflectVector));
+                        if(Mcandi.intersect == false){
+                            continue;
+                        }else{
+                            if(Mcandi.OM > 0 && Mcandi.OM < nearestOMRef){
+                                nearestOMRef = Mcandi.OM;
+                                nearestPlanetRef = p;
+                                Mr[r] = Mcandi;
+                            }
+                        }
+                    }
+                    auto it = find(suns.begin(), suns.end(), nearestPlanetRef);
+                    if(nearestPlanetRef == -1 || it != suns.end()){
+                        Uint8 SR = 0, SG = 0, SB = 0;
+                        StellarHaloDetect(parti, suns, ReflectVector, Mr[r - 1], SR, SG, SB);
+                        RR += (double(SR) - RRefPre) * WR;
+                        GG += (double(SG) - GRefPre) * WR;
+                        BB += (double(SB) - BRefPre) * WR;
+                        break;
+                    }
+                    PreP[r] = parti[nearestPlanetRef];
+                    /* Light Magnitude */
+                    RTXV NpmRef = {
+                        (Mr[r].x - parti[nearestPlanetRef].x)/parti[nearestPlanetRef].radius,
+                        (Mr[r].y - parti[nearestPlanetRef].y)/parti[nearestPlanetRef].radius,
+                        (Mr[r].z - parti[nearestPlanetRef].z)/parti[nearestPlanetRef].radius,
+                    };
+                    double PSRef = sqrt(
+                                        pow(parti[suns[0]].x - parti[nearestPlanetRef].x, 2) + pow(parti[suns[0]].y - parti[nearestPlanetRef].y, 2) + pow(parti[suns[0]].z - parti[nearestPlanetRef].z, 2)
+                                        );
+                    RTXV NpsRef = {
+                        (parti[suns[0]].x - parti[nearestPlanetRef].x)/PSRef,
+                        (parti[suns[0]].y - parti[nearestPlanetRef].y)/PSRef,
+                        (parti[suns[0]].z - parti[nearestPlanetRef].z)/PSRef,
+                    };
+                    double Ir = max(
+                                    (NpmRef.x * NpsRef.x + NpmRef.y * NpsRef.y + NpmRef.z * NpsRef.z) * (1 - SSAOI) + SSAOI, 0.0
+                                    );
+                    /* Shadow Calc */
+                    double MSLengthRef = sqrt(
+                                              pow((parti[suns[0]].x - Mr[r].x), 2) +
+                                              pow((parti[suns[0]].y - Mr[r].y), 2) +
+                                              pow((parti[suns[0]].z - Mr[r].z), 2)
+                                              );
+                    
+                    RTXV MSRef = {
+                        parti[suns[0]].x - Mr[r].x,
+                        parti[suns[0]].y - Mr[r].y,
+                        parti[suns[0]].z - Mr[r].z,
+                    };
+                    
+                    /* Execute Shadow BVH */
+                    vector<long> shadow_indexRef;
+                    RTXBVHRay(shadow_indexRef, BVHCollector[0], MSRef, Mr[r]);
+                    for(int n = 0;n < shadow_indexRef.size();n++){
+                        long p = shadow_indexRef[n];
+                        if(p == nearestPlanetRef || p == suns[0])continue;
+                        RTXV ShadowRef = RTXVectorCalcM(MSRef, Mr[r], {parti[p].x, parti[p].y, parti[p].z}, parti[p].radius, MSLengthRef);
+                        if(ShadowRef.intersect && ShadowRef.OM < MSLengthRef && ShadowRef.OM > 0){
+                            Ir = SSAOI;
+                            break;
+                        }
+                    }
+                    
+                    Uint8 RRefSun = ((parti[suns[0]].c1 - parti[nearestPlanetRef].c1) * 0.05 + parti[nearestPlanetRef].c1) * Ir;
+                    Uint8 GRefSun = ((parti[suns[0]].c2 - parti[nearestPlanetRef].c2) * 0.05 + parti[nearestPlanetRef].c2) * Ir;
+                    Uint8 BRefSun = ((parti[suns[0]].c3 - parti[nearestPlanetRef].c3) * 0.05 + parti[nearestPlanetRef].c3) * Ir;
+                    
+                    RR += (RRefSun - RRefPre) * WR;
+                    GG += (GRefSun - GRefPre) * WR;
+                    BB += (BRefSun - BRefPre) * WR;
+                    
+                    RRefPre = RRefSun; GRefPre = GRefSun; BRefPre = BRefSun;
+                }
+                R = Uint8(clamp(RR, 0.0, 255.0));
+                G = Uint8(clamp(GG, 0.0, 255.0));
+                B = Uint8(clamp(BB, 0.0, 255.0));
+            }
+            
+            
+            /* RGB Pass*/
             Rbuf[i][j] = R;
             Gbuf[i][j] = G;
             Bbuf[i][j] = B;
@@ -2274,6 +2402,7 @@ struct rtx_metal_projection{
     float x,y,z;
     int c1,c2,c3,c4;
     float r;
+    float reflection = 0.5;
 };
 struct metalcamera{
     float x,y,z;
@@ -2411,9 +2540,10 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     [RTXPathEnc setBuffer:metalBVHCollectorBuf offset:0 atIndex:8];
     int metalBVHCollectorSize = metalBVHCollector.size();
     [RTXPathEnc setBytes:&metalBVHCollectorSize length:sizeof(metalBVHCollectorSize) atIndex:9];
-    [RTXPathEnc setBuffer:RBuf offset:0 atIndex:10];
-    [RTXPathEnc setBuffer:GBuf offset:0 atIndex:11];
-    [RTXPathEnc setBuffer:BBuf offset:0 atIndex:12];
+    [RTXPathEnc setBytes:&RTXReflect length:sizeof(RTXReflect) atIndex:10];
+    [RTXPathEnc setBuffer:RBuf offset:0 atIndex:11];
+    [RTXPathEnc setBuffer:GBuf offset:0 atIndex:12];
+    [RTXPathEnc setBuffer:BBuf offset:0 atIndex:13];
     
     NSUInteger threadGroupSize2 = MIN(sqrt(RTXPathPSO.maxTotalThreadsPerThreadgroup), sqrt(width * height));
     MTLSize groupSize2 = MTLSizeMake(threadGroupSize2, threadGroupSize2, 1);
