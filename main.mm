@@ -97,7 +97,7 @@ void drawCircle3(SDL_Renderer* ren,projection p,double fov_deg,bool Target);
 int findFocus(vector<particle>& planet,camera& cam);
 void disintegrate4(vector<particle>& p,vector<particle>& roc,double rocheR,double r,int cur,double dx,double dy,double dz,double K);
 void merge(vector<particle>& p,int cur,int comp);
-void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera &cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal,bool& AutoDTime,long& second,float& fps,int& perform, bool& rtx, bool& stand, string& standon);
+void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera &cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal,bool& AutoDTime,long& second,float& fps,int& perform, bool& rtx, bool& stand, string& standon, bool& debug_bvh, int& debug_bvh_max);
 void save(vector<particle> p);
 void camera_movement(camera &cam,double friction,double acceleration,bool& camera_locked,string camera_lockin,vector<particle> p, bool &stand, string standon, bool pause);
 void position_movement(vector<particle> &planet,vector<double> &newx,vector<double> &newy,vector<double> &newz,vector<double> &newax,vector<double> &neway,vector<double> &newaz,bool roche,vector<particle> &roc,bool SpaceShipMode);
@@ -119,9 +119,20 @@ struct RTXV{
 vector<vector<RTXV>> RTXOriginVector(height, vector<RTXV>(width, {0, 0, 0}));
 vector<vector<double>> RTXVectorLength(height, vector<double>(width, 0));
 vector<vector<RTXV>> RTXVector(height, vector<RTXV>(width, {0, 0, 0}));
-void RTXInitial();
+struct BVHNode{
+    RTXV C1, C2;
+    vector<long> indices;
+    int left = -1, right = -1;
+};
+vector<BVHNode> BVHCollector;
+void RTXInitial(int rtxheight = height, int rtxwidth = width);
 void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns);
 void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns);
+void DrawBVHDebug(SDL_Renderer* ren, const vector<BVHNode> &BVHCollector, const camera &cam, int maxDepth = 3);
+struct SysSetting{
+    bool SSAA = false;
+    int SSAA_multi = 2;
+}ss;
 int main()
 {
     vector<particle> planet;
@@ -144,7 +155,7 @@ int main()
     TTF_Font* font=TTF_OpenFont(full_path.c_str(),40);
     const double mousesensitivity=0.1;
     long second=1.0;
-    int perform=1;
+    int perform=3;
     /*Initial movement*/
     double acceleration=0.5;
     double friction=0.94;
@@ -177,7 +188,9 @@ int main()
     bool shader=false;
     bool rtx = false;
     //Initial RTX parameters
-    int last_width=-1, last_height=-1, last_fov=-1;
+    int last_width=-1, last_height=-1, last_fov=-1, last_ssaa=-1, last_ssaamulti=-1;
+    bool debug_bvh = false;
+    int debug_bvh_max = 3;
 
     while(running){
         int initialT=0.7*height;
@@ -190,11 +203,17 @@ int main()
         newaz.resize(planet.size());
         SDL_PollEvent(&event);
         SDL_GetWindowSize(win,&width,&height);
-        if(last_width != width || last_height != height || last_fov != cam.fov){
-            RTXInitial();
+        if(last_width != width || last_height != height || last_fov != cam.fov || last_ssaa != (int)ss.SSAA || last_ssaamulti != ss.SSAA_multi){
+            if(ss.SSAA){
+                RTXInitial(height*ss.SSAA_multi, width*ss.SSAA_multi);
+            }else{
+                RTXInitial();
+            }
             last_width = width;
             last_height = height;
             last_fov = cam.fov;
+            last_ssaa = (int)ss.SSAA;
+            last_ssaamulti = ss.SSAA_multi;
         }
         
         switch(event.type){
@@ -332,6 +351,7 @@ int main()
             }
             if(isMetal)RTXRenderMetal(ren, rendering, planet, suns);
             else RTXRender(ren, rendering, planet, suns);
+            if(debug_bvh)DrawBVHDebug(ren, BVHCollector, cam, debug_bvh_max);
         }else{
             for(int cur=0;cur<rendering.size();cur++){
                 if(SpaceShipMode&&myship.target&&myship.target_name==rendering[cur].name)target=true;
@@ -427,10 +447,12 @@ int main()
                     commandbuf+=" ";
                     currentbuf.push_back(">");
                 }else if(event.key.key==SDLK_RETURN){
-                    execute(planet,commandbuf,pause,roche,debug,SpaceShipMode,cam,camera_lockin,camera_locked,win,shader,isMetal,AutoDTime,second,fps,perform,rtx, stand,standon);
+                    execute(planet,commandbuf,pause,roche,debug,SpaceShipMode,cam,camera_lockin,camera_locked,win,shader,isMetal,AutoDTime,second,fps,perform,rtx, stand,standon, debug_bvh, debug_bvh_max);
                     isTyping=false;
                     SDL_StopTextInput(win);
                     if(SpaceShipMode)pause=false;
+                    
+                    SDL_RenderPresent(ren);
                     continue;
                 }
                 if((SDL_KMOD_GUI&event.key.mod)&&event.key.key==SDLK_V){
@@ -478,6 +500,7 @@ int main()
             string debug_buf5="SpaceShipMode:"+to_string(SpaceShipMode);
             string debug_buf6="Shader: "+to_string(shader)+" RTX(ref:" + to_string(RTXReflect) + "): "+to_string(rtx);
             string debug_buf7="Perform: "+to_string(perform) + " GPU(METAL): "+to_string(isMetal);
+            string debug_buf8="SSAA: "+to_string(ss.SSAA) + " SSAAx"+to_string(ss.SSAA_multi);
             if(pause==true)debug_buf1+="  [PAUSE]";
             SDL_SetRenderDrawColor(ren,255,255,255,255);
             SDL_RenderDebugText(ren,20,10,debug_buf1.c_str());
@@ -487,6 +510,7 @@ int main()
             SDL_RenderDebugText(ren,20,58,debug_buf5.c_str());
             SDL_RenderDebugText(ren,20,70,debug_buf6.c_str());
             SDL_RenderDebugText(ren,20,82,debug_buf7.c_str());
+            SDL_RenderDebugText(ren,20,94,debug_buf8.c_str());
         }
         /*Debug*/
         SDL_RenderPresent(ren);
@@ -804,7 +828,7 @@ void save(vector<particle> p){
     }
     file.close();
 }
-void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera& cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal,bool& AutoDTime,long& second,float& fps,int& perform, bool& rtx, bool& stand, string& standon){
+void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& debug,bool& SpaceShipMode,camera& cam,string& camera_lockin,bool& camera_locked,SDL_Window* win,bool& shader,bool& isMetal,bool& AutoDTime,long& second,float& fps,int& perform, bool& rtx, bool& stand, string& standon, bool& debug_bvh, int& debug_bvh_max){
     stringstream ssin(command);
     string n;
     ssin>>n;
@@ -1107,6 +1131,7 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
     if(n=="reflection"){
         string ref;
         ssin>>ref;
+        if(ref == "")return;
         RTXReflect = stoi(ref);
     }
     if(n=="reflectionvalue"){
@@ -1119,6 +1144,26 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
                 p[i].reflection = stoi(value);
                 break;
             }
+        }
+    }
+    if(n=="debugbvh"){
+        string value;
+        ssin>>value;
+        if(value == ""){
+            debug_bvh = false;
+        }else{
+            debug_bvh = true;
+            debug_bvh_max = stoi(value);
+        }
+    }
+    if(n=="ssaa"){
+        string value;
+        ssin>>value;
+        if(value == ""){
+            ss.SSAA = false;
+        }else{
+            ss.SSAA = true;
+            ss.SSAA_multi = stoi(value);
         }
     }
     if(isNumber(n)==false)return;
@@ -1187,6 +1232,7 @@ void drawCircle3(SDL_Renderer* ren,projection p,double fov_deg,bool Target){
         int len=(int)sqrt(r*r-j*j);
         SDL_RenderLine(ren,p.sx-len,p.sy+j,p.sx+len,p.sy+j);
     }
+    
     if(Target){
         int t_cir=r+20;
         int t_cir_l=r+19;
@@ -1738,23 +1784,60 @@ void DrawCircleShader(SDL_Renderer* ren,projection p,double fov_deg,bool Target,
     int start_j=(p.sy-r>=0)?-r:-p.sy;
     int end_j=(p.sy+r<=height)?r:height-p.sy;
     
+    int n = ss.SSAA ? max(1, ss.SSAA_multi) : 1;
+
+    SDL_BlendMode oldBlend;
+    SDL_GetRenderDrawBlendMode(ren, &oldBlend);
+    if(ss.SSAA) SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    
+    
     for(int i=start_i;i<=end_i;i++){
         for(int j=start_j;j<=end_j;j++){
-            if(i*i+j*j<=r*r){
-                double nx=(double)i/r;
-                double ny=(double)j/r;
-                double nz=sqrt(1.0-(nx*nx+ny*ny));
 
-                double intensity=nx*lx+ny*ly+nz*lz;
-                intensity*=stellar_intensity;
-                if(intensity<0)intensity=abs(intensity*0.03);
-                
-                SDL_SetRenderDrawColor(ren, intensity*p.c1, intensity*p.c2, intensity*p.c3, p.c4);
-                SDL_RenderPoint(ren,p.sx+i,p.sy+j);
+            double avgR=0, avgG=0, avgB=0;
+            int hit=0;
+
+            for(int a=0;a<n;a++){
+                for(int b=0;b<n;b++){
+
+                    double x=i+(a+0.5)/n-0.5;
+                    double y=j+(b+0.5)/n-0.5;
+
+                    if(x*x+y*y>r*r)continue;
+
+                    double nx=x/r;
+                    double ny=y/r;
+                    double nz=sqrt(max(0.0,1.0-nx*nx-ny*ny));
+
+                    double intensity=nx*lx+ny*ly+nz*lz;
+                    intensity*=stellar_intensity;
+
+                    if(intensity<0)intensity=abs(intensity*0.03);
+
+                    avgR+=intensity*p.c1;
+                    avgG+=intensity*p.c2;
+                    avgB+=intensity*p.c3;
+
+                    hit++;
+                }
             }
+
+            if(hit==0)continue;
+
+            SDL_SetRenderDrawColor(
+                ren,
+                Uint8(clamp(avgR/hit,0.0,255.0)),
+                Uint8(clamp(avgG/hit,0.0,255.0)),
+                Uint8(clamp(avgB/hit,0.0,255.0)),
+                Uint8(clamp(double(p.c4)*hit/(n*n),0.0,255.0))
+            );
+
+            SDL_RenderPoint(ren,p.sx+i,p.sy+j);
         }
     }
-    
+
+    SDL_SetRenderDrawBlendMode(ren, oldBlend);
+
     if(Target){
         int t_cir=r+20;
         int t_cir_l=r+19;
@@ -1859,17 +1942,17 @@ void DrawStellarShader(SDL_Renderer* ren, projection p, double fov_deg) {
 
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
 }
-void RTXInitial(){
-    RTXOriginVector.assign(height, vector<RTXV>(width, {0,0,0}));
-    RTXVector.assign(height, vector<RTXV>(width, {0,0,0}));
-    RTXVectorLength.assign(height, vector<double>(width, 0));
-    double OOm = height/(2*tan(cam.fov * M_PI / 360.0));
-    for(int i = height/2;i > -height/2;i--){
-        for(int j = -width/2;j < width/2;j++){
-            RTXOriginVector[height/2-i][j+width/2].x = j;
-            RTXOriginVector[height/2-i][j+width/2].y = i;
-            RTXOriginVector[height/2-i][j+width/2].z = OOm;
-            RTXVectorLength[height/2-i][j+width/2] = sqrt(j * j + i * i + OOm * OOm);
+void RTXInitial(int rtxheight, int rtxwidth){
+    RTXOriginVector.assign(rtxheight, vector<RTXV>(rtxwidth, {0,0,0}));
+    RTXVector.assign(rtxheight, vector<RTXV>(rtxwidth, {0,0,0}));
+    RTXVectorLength.assign(rtxheight, vector<double>(rtxwidth, 0));
+    double OOm = rtxheight/(2*tan(cam.fov * M_PI / 360.0));
+    for(int i = rtxheight/2;i > -rtxheight/2;i--){
+        for(int j = -rtxwidth/2;j < rtxwidth/2;j++){
+            RTXOriginVector[rtxheight/2-i][j+rtxwidth/2].x = j;
+            RTXOriginVector[rtxheight/2-i][j+rtxwidth/2].y = i;
+            RTXOriginVector[rtxheight/2-i][j+rtxwidth/2].z = OOm;
+            RTXVectorLength[rtxheight/2-i][j+rtxwidth/2] = sqrt(j * j + i * i + OOm * OOm);
         }
     }
 }
@@ -1933,12 +2016,6 @@ RTXV RTXVectorCalcM(RTXV v, RTXV O, RTXV P, double radius, double VLength){
     M.OM = OE - sqrt(delta);
     return M;
 }
-struct BVHNode{
-    RTXV C1, C2;
-    vector<long> indices;
-    int left = -1, right = -1;
-};
-vector<BVHNode> BVHCollector;
 void RTXBVHAABB(const vector<particle> &parti, BVHNode &currentBVH, RTXV &C1, RTXV &C2, RTXV *Delta = {}){
     C1 = {
         parti[currentBVH.indices[0]].x - parti[currentBVH.indices[0]].radius,
@@ -2155,6 +2232,12 @@ void StellarHaloDetect(const vector<particle> &parti, const vector<int> &suns, c
     }
 }
 void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns){
+    int rtxheight = height;
+    int rtxwidth = width;
+    if(ss.SSAA){
+        rtxheight *= ss.SSAA_multi;
+        rtxwidth *= ss.SSAA_multi;
+    }
     /* Correct Ray Vector */
     RTXV Matrix[3] = {
         {cos(cam.yaw * M_PI/ 180)                              , -sin(cam.pitch * M_PI/ 180) * sin(cam.yaw * M_PI/ 180), cos(cam.pitch * M_PI/ 180) * sin(cam.yaw * M_PI/ 180)},
@@ -2162,8 +2245,8 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
         {-sin(cam.yaw * M_PI/ 180)                             , -sin(cam.pitch * M_PI/ 180) * cos(cam.yaw * M_PI/ 180), cos(cam.pitch * M_PI/ 180) * cos(cam.yaw * M_PI/ 180)}
     };
     #pragma omp parallel for
-    for(int i = height - 1;i >= 0;i--){
-        for(int j = 0;j < width;j++){
+    for(int i = rtxheight - 1;i >= 0;i--){
+        for(int j = 0;j < rtxwidth;j++){
             RTXVector[i][j].x = RTXOriginVector[i][j].x * Matrix[0].x + RTXOriginVector[i][j].y * Matrix[0].y + RTXOriginVector[i][j].z * Matrix[0].z;
             RTXVector[i][j].y = RTXOriginVector[i][j].x * Matrix[1].x + RTXOriginVector[i][j].y * Matrix[1].y + RTXOriginVector[i][j].z * Matrix[1].z;
             RTXVector[i][j].z = RTXOriginVector[i][j].x * Matrix[2].x + RTXOriginVector[i][j].y * Matrix[2].y + RTXOriginVector[i][j].z * Matrix[2].z;
@@ -2180,12 +2263,14 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
     
     double SSAOI = 0.10;
     /* Ray out */
-    vector<vector<Uint8>> Rbuf(height, vector<Uint8>(width, 0));
-    vector<vector<Uint8>> Gbuf(height, vector<Uint8>(width, 0));
-    vector<vector<Uint8>> Bbuf(height, vector<Uint8>(width, 0));
+    vector<vector<Uint8>> Rbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
+    vector<vector<Uint8>> Gbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
+    vector<vector<Uint8>> Bbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
+    
+    
     #pragma omp parallel for
-    for(int i = height - 1;i >= 0;i--){
-        for(int j = 0;j < width;j++){
+    for(int i = rtxheight - 1;i >= 0;i--){
+        for(int j = 0;j < rtxwidth;j++){
             /* Execute BVH */
             vector<long> index;
             RTXBVHRay(index, BVHCollector[0], RTXVector[i][j], {cam.x, cam.y, cam.z});
@@ -2381,11 +2466,25 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
     for(int i = 0;i < height;i++){
         for(int j = 0;j < width;j++){
             int p = (i * width + j) * 4;
-            
-            rgb[p] = Rbuf[i][j];
-            rgb[p+1] = Gbuf[i][j];
-            rgb[p+2] = Bbuf[i][j];
-            rgb[p+3] = 225;
+            if(ss.SSAA){
+                int R=0, G=0, B=0;
+                for(int z1 = 0;z1 < ss.SSAA_multi;z1++){
+                    for(int z2 = 0;z2 < ss.SSAA_multi;z2++){
+                        R += Rbuf[i * ss.SSAA_multi + z1][j * ss.SSAA_multi + z2];
+                        G += Gbuf[i * ss.SSAA_multi + z1][j * ss.SSAA_multi + z2];
+                        B += Bbuf[i * ss.SSAA_multi + z1][j * ss.SSAA_multi + z2];
+                    }
+                }
+                rgb[p] = R/(ss.SSAA_multi * ss.SSAA_multi);
+                rgb[p+1] = G/(ss.SSAA_multi * ss.SSAA_multi);
+                rgb[p+2] = B/(ss.SSAA_multi * ss.SSAA_multi);
+                rgb[p+3] = 255;
+            }else{
+                rgb[p] = Rbuf[i][j];
+                rgb[p+1] = Gbuf[i][j];
+                rgb[p+2] = Bbuf[i][j];
+                rgb[p+3] = 255;
+            }
         }
     }
     
@@ -2417,6 +2516,12 @@ struct metalBVHNode{
     int count = 0;
 };
 void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns){
+    int rtxheight = height;
+    int rtxwidth = width;
+    if(ss.SSAA){
+        rtxheight *= ss.SSAA_multi;
+        rtxwidth *= ss.SSAA_multi;
+    }
     /* Initial BVH */
     BVHNode mainBVH;
     BVHCollector.clear();
@@ -2455,17 +2560,17 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
         {0, float(cos(cam.pitch * M_PI/ 180)), float(sin(cam.pitch * M_PI/ 180))},
         {float(-sin(cam.yaw * M_PI/ 180)), float(-sin(cam.pitch * M_PI/ 180) * cos(cam.yaw * M_PI/ 180)), float(cos(cam.pitch * M_PI/ 180) * cos(cam.yaw * M_PI/ 180))}
     };
-    vector<MetalRTXV> flat_RTXOriginVector(width * height);
-    vector<float> flat_RTXVectorLength(width * height);
+    vector<MetalRTXV> flat_RTXOriginVector(rtxwidth * rtxheight);
+    vector<float> flat_RTXVectorLength(rtxwidth * rtxheight);
     #pragma omp parallel for
-    for(int i = 0;i < height;i++){
-        for(int j = 0;j < width;j++){
-            flat_RTXOriginVector[i*width + j] = {
+    for(int i = 0;i < rtxheight;i++){
+        for(int j = 0;j < rtxwidth;j++){
+            flat_RTXOriginVector[i*rtxwidth + j] = {
                 float(RTXOriginVector[i][j].x), float(RTXOriginVector[i][j].y), float(RTXOriginVector[i][j].z),
                 RTXOriginVector[i][j].intersect,
                 float(RTXOriginVector[i][j].OM)
             };
-            flat_RTXVectorLength[i*width + j] = float(RTXVectorLength[i][j]);
+            flat_RTXVectorLength[i*rtxwidth + j] = float(RTXVectorLength[i][j]);
         }
     }
     
@@ -2474,7 +2579,7 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     /* Correcting Ray Vector */
     id<MTLBuffer> RTXOriginVectorBuf = [device newBufferWithBytes:flat_RTXOriginVector.data() length:flat_RTXOriginVector.size()*sizeof(MetalRTXV) options:MTLResourceStorageModeShared];
     id<MTLBuffer> MatrixBuf = [device newBufferWithBytes:Matrix length:sizeof(Matrix) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> WidthBuf = [device newBufferWithBytes:&width length:sizeof(width) options:MTLResourceStorageModeShared];
+    id<MTLBuffer> WidthBuf = [device newBufferWithBytes:&rtxwidth length:sizeof(rtxwidth) options:MTLResourceStorageModeShared];
     id<MTLBuffer> RTXVectorBuf = [device newBufferWithLength:flat_RTXOriginVector.size()*sizeof(MetalRTXV) options:MTLResourceStorageModePrivate];
     
     id<MTLComputeCommandEncoder> correct_vectorEnc = [cmdBuf computeCommandEncoder];
@@ -2484,15 +2589,15 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     [correct_vectorEnc setBuffer:WidthBuf offset:0 atIndex:2];
     [correct_vectorEnc setBuffer:RTXVectorBuf offset:0 atIndex:3];
     
-    NSUInteger threadGroupSize = MIN(sqrt(correct_vectorPSO.maxTotalThreadsPerThreadgroup), sqrt(width * height));
+    NSUInteger threadGroupSize = MIN(sqrt(correct_vectorPSO.maxTotalThreadsPerThreadgroup), sqrt(rtxwidth * rtxheight));
     MTLSize groupSize = MTLSizeMake(threadGroupSize, threadGroupSize, 1);
-    MTLSize gridSize = MTLSizeMake(width, height, 1);
+    MTLSize gridSize = MTLSizeMake(rtxwidth, rtxheight, 1);
     
     [correct_vectorEnc dispatchThreads:gridSize threadsPerThreadgroup:groupSize];
     [correct_vectorEnc endEncoding];
     /* Correcting Ray Vector */
     /* Light Path Tracing */
-    vector<Uint8> Sample(height * width);
+    vector<Uint8> Sample(rtxheight * rtxwidth);
     
     rtx_metal_projection rtx_planet[planet.size()];
     rtx_metal_projection rtx_parti[parti.size()];
@@ -2545,9 +2650,9 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     [RTXPathEnc setBuffer:GBuf offset:0 atIndex:12];
     [RTXPathEnc setBuffer:BBuf offset:0 atIndex:13];
     
-    NSUInteger threadGroupSize2 = MIN(sqrt(RTXPathPSO.maxTotalThreadsPerThreadgroup), sqrt(width * height));
+    NSUInteger threadGroupSize2 = MIN(sqrt(RTXPathPSO.maxTotalThreadsPerThreadgroup), sqrt(rtxwidth * rtxheight));
     MTLSize groupSize2 = MTLSizeMake(threadGroupSize2, threadGroupSize2, 1);
-    MTLSize gridSize2 = MTLSizeMake(width, height, 1);
+    MTLSize gridSize2 = MTLSizeMake(rtxwidth, rtxheight, 1);
     
     [RTXPathEnc dispatchThreads:gridSize2 threadsPerThreadgroup:groupSize2];
     [RTXPathEnc endEncoding];
@@ -2572,15 +2677,115 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
         for(int j = 0;j < width;j++){
             int pixel = i * width + j;
             int p = pixel * 4;
-        
-            rgb[p] = R[pixel];
-            rgb[p+1] = G[pixel];
-            rgb[p+2] = B[pixel];
-            rgb[p+3] = 225;
+            
+            if(ss.SSAA){
+                int Rb=0, Gb=0, Bb=0;
+                for(int z1 = 0;z1 < ss.SSAA_multi;z1++){
+                    for(int z2 = 0;z2 < ss.SSAA_multi;z2++){
+                        int index = (i * ss.SSAA_multi + z1) * rtxwidth + (j * ss.SSAA_multi + z2);
+                        Rb += R[index];
+                        Gb += G[index];
+                        Bb += B[index];
+                    }
+                }
+                rgb[p] = Rb/(ss.SSAA_multi * ss.SSAA_multi);
+                rgb[p+1] = Gb/(ss.SSAA_multi * ss.SSAA_multi);
+                rgb[p+2] = Bb/(ss.SSAA_multi * ss.SSAA_multi);
+                rgb[p+3] = 255;
+            }else{
+                rgb[p] = R[pixel];
+                rgb[p+1] = G[pixel];
+                rgb[p+2] = B[pixel];
+                rgb[p+3] = 225;
+            }
         }
     }
     
     SDL_UpdateTexture(tex, nullptr, rgb.data(), width * 4);
     SDL_FRect dst = {0, 0, (float)width, (float)height};
     SDL_RenderTexture(ren, tex, nullptr, &dst);
+}
+void DrawBVHDebug(SDL_Renderer* ren, const vector<BVHNode> &BVHCollector, const camera &cam, int maxDepth){
+
+    if(BVHCollector.empty()) return;
+
+    auto ProjectToScreen = [&](const RTXV &p, float &sx, float &sy)->bool{
+
+        double dx = p.x - cam.x;
+        double dy = p.y - cam.y;
+        double dz = p.z - cam.z;
+
+        double yaw = cam.yaw * M_PI / 180.0;
+        double pitch = cam.pitch * M_PI / 180.0;
+        double fov = cam.fov * M_PI / 180.0;
+
+        // yaw
+        double x1 = dx * cos(yaw) - dz * sin(yaw);
+        double z1 = dx * sin(yaw) + dz * cos(yaw);
+
+        // pitch
+        double y2 = dy * cos(pitch) - z1 * sin(pitch);
+        double z2 = dy * sin(pitch) + z1 * cos(pitch);
+
+        if(z2 <= 0.01) return false;
+
+        sx = float((x1 / (z2 * tan(fov / 2.0)) + 1.0) * width * 0.5);
+        sy = float((1.0 - y2 / (z2 * tan(fov / 2.0))) * height * 0.5);
+
+        return true;
+    };
+
+    auto DrawOneBox = [&](const BVHNode &node){
+
+        RTXV p[8] = {
+            {node.C1.x, node.C1.y, node.C1.z},
+            {node.C2.x, node.C1.y, node.C1.z},
+            {node.C1.x, node.C2.y, node.C1.z},
+            {node.C2.x, node.C2.y, node.C1.z},
+            {node.C1.x, node.C1.y, node.C2.z},
+            {node.C2.x, node.C1.y, node.C2.z},
+            {node.C1.x, node.C2.y, node.C2.z},
+            {node.C2.x, node.C2.y, node.C2.z}
+        };
+
+        const int edge[12][2] = {
+            {0,1},{0,2},{1,3},{2,3},
+            {4,5},{4,6},{5,7},{6,7},
+            {0,4},{1,5},{2,6},{3,7}
+        };
+
+        float sx[8], sy[8];
+        bool ok[8];
+
+        for(int i = 0; i < 8; i++){
+            ok[i] = ProjectToScreen(p[i], sx[i], sy[i]);
+        }
+
+        for(int i = 0; i < 12; i++){
+            int a = edge[i][0];
+            int b = edge[i][1];
+
+            if(ok[a] && ok[b]){
+                SDL_RenderLine(ren, sx[a], sy[a], sx[b], sy[b]);
+            }
+        }
+    };
+
+    auto DFS = [&](auto&& self, int idx, int depth)->void{
+
+        if(idx < 0 || idx >= BVHCollector.size()) return;
+        if(depth > maxDepth) return;
+
+        if(depth == 0) SDL_SetRenderDrawColor(ren, 255, 60, 60, 255);
+        else if(depth == 1) SDL_SetRenderDrawColor(ren, 255, 220, 60, 255);
+        else if(depth == 2) SDL_SetRenderDrawColor(ren, 60, 255, 120, 255);
+        else SDL_SetRenderDrawColor(ren, 80, 180, 255, 255);
+
+        DrawOneBox(BVHCollector[idx]);
+
+        self(self, BVHCollector[idx].left, depth + 1);
+        self(self, BVHCollector[idx].right, depth + 1);
+    };
+
+    DFS(DFS, 0, 0);
 }
