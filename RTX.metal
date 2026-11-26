@@ -6,6 +6,7 @@
 //
 
 #include <metal_stdlib>
+
 using namespace metal;
 
 struct RTXV{
@@ -18,6 +19,9 @@ struct projection{
     int c1,c2,c3,c4;
     float r;
     float reflection = 0.5;
+    
+    float w_velocity = 2 * 3.1415926 / 86400;
+    float rotation = 0;
 };
 struct camera{
     float x,y,z;
@@ -240,6 +244,76 @@ void StellarHaloDetect(device const projection *parti, device const int *suns, l
         B = parti[p].c3 * I;
     }
 }
+void getTextureByCube(device const projection &planet, device const uint8_t *texture, int textureID, int S, const RTXV vector, thread int &c1, thread int &c2, thread int &c3, thread int &c4){
+    if(textureID < 0)return;
+    
+    RTXV rotVector = {
+        vector.x * cos(planet.rotation) - vector.z * sin(planet.rotation),
+        vector.y,
+        vector.x * sin(planet.rotation) + vector.z * cos(planet.rotation)
+    };
+    
+    int i, j, face;
+    //px
+    if(rotVector.x > 0 && rotVector.x >= abs(rotVector.y) && rotVector.x >= abs(rotVector.z)){
+        float t = 1 / rotVector.x;
+        
+        face = 0;
+        i = int((1 - t * rotVector.z) * 0.5 * S);
+        j = int((1 - t * rotVector.y) * 0.5 * S);
+    }
+    //nx
+    else if(rotVector.x <= 0 && -rotVector.x >= abs(rotVector.y) && -rotVector.x >= abs(rotVector.z)){
+        float t = -1 / rotVector.x;
+
+        face = 1;
+        i = int((1 + t * rotVector.z) * 0.5 * S);
+        j = int((1 - t * rotVector.y) * 0.5 * S);
+    }
+    //py
+    else if(rotVector.y > 0 && rotVector.y >= abs(rotVector.x) && rotVector.y >= abs(rotVector.z)){
+        float t = 1 / rotVector.y;
+
+        face = 2;
+        i = int((1 + t * rotVector.x) * 0.5 * S);
+        j = int((1 + t * rotVector.z) * 0.5 * S);
+    }
+    //ny
+    else if(rotVector.y <= 0 && -rotVector.y >= abs(rotVector.x) && -rotVector.y >= abs(rotVector.z)){
+        float t = -1 / rotVector.y;
+
+        face = 3;
+        i = int((1 + t * rotVector.x) * 0.5 * S);
+        j = int((1 - t * rotVector.z) * 0.5 * S);
+    }
+    //pz
+    else if(rotVector.z > 0 && rotVector.z >= abs(rotVector.x) && rotVector.z >= abs(rotVector.y)){
+        float t = 1 / rotVector.z;
+
+        face = 4;
+        i = int((1 + t * rotVector.x) * 0.5 * S);
+        j = int((1 - t * rotVector.y) * 0.5 * S);
+    }
+    //nz
+    else if(rotVector.z <= 0 && -rotVector.z >= abs(rotVector.x) && -rotVector.z >= abs(rotVector.y)){
+        float t = -1 / rotVector.z;
+
+        face = 5;
+        i = int((1 - t * rotVector.x) * 0.5 * S);
+        j = int((1 - t * rotVector.y) * 0.5 * S);
+    }
+    else return;
+    
+    i = clamp(i, 0, S-1);
+    j = clamp(j, 0, S-1);
+    
+    ulong p = ulong(textureID) + (ulong(face) * S * S + j * S + i) * 4;
+    
+    c1 = texture[p];
+    c2 = texture[p + 1];
+    c3 = texture[p + 2];
+    c4 = texture[p + 3];
+}
 kernel void RTXPath(
                     device const int *Width,
                     device const RTXV *RTXVector,
@@ -253,6 +327,10 @@ kernel void RTXPath(
                     device const metalBVHNode *metalBVHCollector,
                     device const int *metalBVHCollectorSize,
                     device const int *RTXReflect,
+                    
+                    device const int *textureIndex,
+                    device const uint8_t *texture,
+                    device const int *S,
                     
                     device uint8_t *R,
                     device uint8_t *G,
@@ -310,14 +388,24 @@ kernel void RTXPath(
         float k = 1.0;
         RTXBVHRayForShadow(parti, metalBVHCollector[0], MS, M, metalBVHCollector, *metalBVHCollectorSize, nearestPlanet, M, MS, MSLength, k, suns[i], SSAOI);
         I += max(Npm.x * Nps.x + Npm.y * Nps.y + Npm.z * Nps.z, 0.0) * (1 - SSAOI) * k + SSAOI;
+        
+        //Texture Renderer
+        int c1 = parti[nearestPlanet].c1;
+        int c2 = parti[nearestPlanet].c2;
+        int c3 = parti[nearestPlanet].c3;
+        int c4 = parti[nearestPlanet].c4;
+        if(textureIndex[nearestPlanet] >= 0){
+            getTextureByCube(parti[nearestPlanet], texture, textureIndex[nearestPlanet], S[nearestPlanet], Npm, c1, c2, c3, c4);
+        }
+        
         R[index] += clamp(
-                         ((parti[suns[i]].c1 - parti[nearestPlanet].c1) * 0.05 + parti[nearestPlanet].c1) * I
+                         ((parti[suns[i]].c1 - c1) * 0.05 + c1) * I
                          ,0.0f,255.0f);
         G[index] += clamp(
-                          ((parti[suns[i]].c2 - parti[nearestPlanet].c2) * 0.05 + parti[nearestPlanet].c2) * I
+                          ((parti[suns[i]].c2 - c2) * 0.05 + c2) * I
                           ,0.0f,255.0f);
         B[index] += clamp(
-                          ((parti[suns[i]].c3 - parti[nearestPlanet].c3) * 0.05 + parti[nearestPlanet].c3) * I
+                          ((parti[suns[i]].c3 - c3) * 0.05 + c3) * I
                           ,0.0f,255.0f);
     }
     
@@ -394,9 +482,18 @@ kernel void RTXPath(
                 Ir += max((NpmRef.x * NpsRef.x + NpmRef.y * NpsRef.y + NpmRef.z * NpsRef.z) * (1 - SSAOI) * k + SSAOI, 0.0);
                 if(k < 1.0f)Ir = SSAOI;
                 
-                RefColor += float3((parti[suns[i]].c1 - parti[nearestPlanetRef].c1) * 0.05 + parti[nearestPlanetRef].c1,
-                (parti[suns[i]].c2 - parti[nearestPlanetRef].c2) * 0.05 + parti[nearestPlanetRef].c2,
-                (parti[suns[i]].c3 - parti[nearestPlanetRef].c3) * 0.05 + parti[nearestPlanetRef].c3) * Ir;
+                //Texture Renderer
+                int c1Ref = parti[nearestPlanetRef].c1;
+                int c2Ref = parti[nearestPlanetRef].c2;
+                int c3Ref = parti[nearestPlanetRef].c3;
+                int c4Ref = parti[nearestPlanetRef].c4;
+                if(textureIndex[nearestPlanetRef] >= 0){
+                    getTextureByCube(parti[nearestPlanetRef], texture, textureIndex[nearestPlanetRef], S[nearestPlanetRef], NpmRef, c1Ref, c2Ref, c3Ref, c4Ref);
+                }
+                
+                RefColor += float3((parti[suns[i]].c1 - c1Ref) * 0.05 + c1Ref,
+                (parti[suns[i]].c2 - c2Ref) * 0.05 + c2Ref,
+                (parti[suns[i]].c3 - c3Ref) * 0.05 + c3Ref) * Ir;
             }
             RR += (RefColor.x - RRefPre) * WR;
             GG += (RefColor.y - GRefPre) * WR;
