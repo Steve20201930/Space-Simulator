@@ -88,6 +88,10 @@ milkyway3 : Full Milky Way simulation, includes all stars. Includes 451,264 star
 * `reflectionvalue [Name] [Value]` : Change reflection coefficient of a certain planet (Default coefficient = 0.5).
 * `ssaa` : Turn off SSAA.
 * `ssaa [Value]` : Turn on SSAA with x[Value] anti-aliasing.
+* `texture` : Turn on and load or turn of texture rendering.
+* `texture [Value]` : For only turn on texture of certain planet.
+* `rotation` : Enable rotation compute of each planets(rad).
+* `rotation [Name] [Value]` : Change value of rotation velocity of certain planet.(Default w = 2PI/86400).
 * `in/out [Method]` : Use different method to compute, default in CPU.(Enable/Disable)
 ```bash
 [Method]
@@ -195,6 +199,10 @@ milkyway3 : 完全模拟银河系，包含所有恒星与行星。包含 451,264
 * `reflectionvalue [Name] [Value]` : 修改特定行星的反射系数（默认为0.5）
 * `ssaa` : 关闭SSAA抗锯齿
 * `ssaa [Value]` : 开启x[Value]倍SSAA抗锯齿
+* `texture` : 开启或关闭贴图渲染（仅在RTX开启时启动）
+* `texture [Value]` : 仅开启特定星球的贴图渲染
+* `rotation` : 开启星球自转计算
+* `rotation [Name] [Value]` : 改变特定星球自转角速度(默认 w = 2PI/86400).
 * `in/out [method]` : 使用不同方法计算,默认在CPU计算(开启/关闭)
 ```bash
 [method]
