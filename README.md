@@ -88,7 +88,7 @@ milkyway3 : Full Milky Way simulation, includes all stars. Includes 451,264 star
 * `reflectionvalue [Name] [Value]` : Change reflection coefficient of a certain planet (Default coefficient = 0.5).
 * `ssaa` : Turn off SSAA.
 * `ssaa [Value]` : Turn on SSAA with x[Value] anti-aliasing.
-* `texture` : Turn on and load or turn of texture rendering.
+* `texture` : Turn on and load or turn off texture rendering.
 * `texture [Value]` : For only turn on texture of certain planet.
 * `rotation` : Enable rotation compute of each planets(rad).
 * `rotation [Name] [Value]` : Change value of rotation velocity of certain planet.(Default w = 2PI/86400).
