@@ -15,6 +15,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #import <simd/simd.h>
 #import <Metal/Metal.h>
+#include <SDL3_image/SDL_image.h>
 using namespace std;
 
 double G=6.674e-11;
@@ -38,8 +39,13 @@ struct particle{
     int c1,c2,c3,c4;
     bool stellar;
     bool merged;
-    double w = 2 * M_PI / 86400;
+    double w_velocity = 2 * M_PI / 86400;
     double reflection = 0.5;
+    
+    SDL_Surface *texture[6] = {};
+    bool hasTexture = false;
+    
+    double rotation = 0;
 };
 struct camera{
     double x,y,z;
@@ -132,6 +138,8 @@ void DrawBVHDebug(SDL_Renderer* ren, const vector<BVHNode> &BVHCollector, const 
 struct SysSetting{
     bool SSAA = false;
     int SSAA_multi = 2;
+    bool Texture = false;
+    bool rotationable = false;
 }ss;
 int main()
 {
@@ -314,6 +322,15 @@ int main()
             //Roche function
             planet.insert(planet.end(),roc.begin(),roc.end());
             roc.clear();
+        }
+        
+        //ROTATION
+        if(!pause && ss.rotationable){
+            for(int i = 0;i < planet.size();i++){
+                planet[i].rotation += planet[i].w_velocity * dt;
+                if(planet[i].rotation > (2 * M_PI))planet[i].rotation -= (2 * M_PI);
+                if(planet[i].rotation < (-2 * M_PI))planet[i].rotation += (2 * M_PI);
+            }
         }
         
         //RENDER
@@ -500,7 +517,7 @@ int main()
             string debug_buf5="SpaceShipMode:"+to_string(SpaceShipMode);
             string debug_buf6="Shader: "+to_string(shader)+" RTX(ref:" + to_string(RTXReflect) + "): "+to_string(rtx);
             string debug_buf7="Perform: "+to_string(perform) + " GPU(METAL): "+to_string(isMetal);
-            string debug_buf8="SSAA: "+to_string(ss.SSAA) + " SSAAx"+to_string(ss.SSAA_multi);
+            string debug_buf8="SSAA: "+to_string(ss.SSAA) + " SSAAx"+to_string(ss.SSAA_multi) + " Texture:" + to_string(ss.Texture);
             if(pause==true)debug_buf1+="  [PAUSE]";
             SDL_SetRenderDrawColor(ren,255,255,255,255);
             SDL_RenderDebugText(ren,20,10,debug_buf1.c_str());
@@ -559,7 +576,7 @@ void camera_movement(camera &cam,double friction,double acceleration,bool& camer
         cam.vx=0; cam.vy=0; cam.vz=0;
         for(int i=0;i<p.size();i++){
             if(p[i].name==standon){
-                if(!pause)standon_theta += p[i].w * dt;
+                if(!pause)standon_theta += p[i].w_velocity * dt;
                 cam.x=p[i].x + sin(standon_theta) * p[i].radius * 0.85; cam.y=p[i].y; cam.z=p[i].z + cos(standon_theta) * p[i].radius * 0.85;
                 cam.yaw = 180 * (standon_theta - int(standon_theta / (2 * M_PI)) * 2 * M_PI) / M_PI;
                 return;
@@ -1164,6 +1181,61 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
         }else{
             ss.SSAA = true;
             ss.SSAA_multi = stoi(value);
+        }
+    }
+    if(n=="texture"){
+        ss.Texture = !ss.Texture;
+        string value;
+        ssin>>value;
+        if(ss.Texture && value == ""){
+            for(long i = 0;i < p.size();i++){
+                if(!filesystem::exists(string(SDL_GetBasePath()) + "Texture/" + p[i].name))continue;
+                string eachPath[6] = {
+                    string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/px.png",
+                    string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/nx.png",
+                    string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/py.png",
+                    string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/ny.png",
+                    string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/pz.png",
+                    string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/nz.png",
+                };
+                for(int t = 0;t < 6;t++){
+                    p[i].texture[t] = IMG_Load(eachPath[t].c_str());
+                }
+                p[i].hasTexture = true;
+            }
+        }else if(ss.Texture && value != ""){
+            for(long i = 0;i < p.size();i++){
+                if(filesystem::exists(string(SDL_GetBasePath()) + "Texture/" + value) && p[i].name == value){
+                    string eachPath[6] = {
+                        string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/px.png",
+                        string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/nx.png",
+                        string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/py.png",
+                        string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/ny.png",
+                        string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/pz.png",
+                        string(SDL_GetBasePath()) + "Texture/" + p[i].name + "/nz.png",
+                    };
+                    for(int t = 0;t < 6;t++){
+                        p[i].texture[t] = IMG_Load(eachPath[t].c_str());
+                    }
+                    p[i].hasTexture = true;
+                }
+            }
+        }
+    }
+    if(n=="rotation"){
+        string value;
+        ssin>>value;
+        if(value==""){
+            ss.rotationable = !ss.rotationable;
+        }else{
+            string rv;
+            ssin>>rv;
+            for(int i = 0;i < p.size();i++){
+                if(p[i].name == value){
+                    p[i].rotation = stod(rv);
+                    break;
+                }
+            }
         }
     }
     if(isNumber(n)==false)return;
@@ -2231,6 +2303,95 @@ void StellarHaloDetect(const vector<particle> &parti, const vector<int> &suns, c
         B = (Uint8)clamp(parti[p].c3 * I, 0.0, 255.0);
     }
 }
+void getTextureByCube(const particle &planet, const RTXV &vector, int &c1, int &c2, int &c3, int &c4){
+    if(planet.hasTexture == false)return;
+    
+    RTXV rotVector = {
+        vector.x * cos(planet.rotation) - vector.z * sin(planet.rotation),
+        vector.y,
+        vector.x * sin(planet.rotation) + vector.z * cos(planet.rotation)
+    };
+    
+    int i, j;
+    //px
+    if(rotVector.x > 0 && rotVector.x >= abs(rotVector.y) && rotVector.x >= abs(rotVector.z)){
+        double t = 1 / rotVector.x;
+        i = int((1 - t * rotVector.z) * 0.5 * (planet.texture[0]->w));
+        j = int((1 - t * rotVector.y) * 0.5 * (planet.texture[0]->h));
+        SDL_Surface *tex = planet.texture[0];
+        const Uint8 *pixels = (const Uint8*)tex->pixels;
+        int p = j * tex->pitch + i * 4;
+        c1 = pixels[p];
+        c2 = pixels[p + 1];
+        c3 = pixels[p + 2];
+        c4 = pixels[p + 3];
+    }
+    //nx
+    else if(rotVector.x <= 0 && -rotVector.x >= abs(rotVector.y) && -rotVector.x >= abs(rotVector.z)){
+        double t = -1 / rotVector.x;
+        i = int((1 + t * rotVector.z) * 0.5 * planet.texture[1]->w);
+        j = int((1 - t * rotVector.y) * 0.5 * planet.texture[1]->h);
+        SDL_Surface *tex = planet.texture[1];
+        const Uint8 *pixels = (const Uint8*)tex->pixels;
+        int p = j * tex->pitch + i * 4;
+        c1 = pixels[p];
+        c2 = pixels[p + 1];
+        c3 = pixels[p + 2];
+        c4 = pixels[p + 3];
+    }
+    //py
+    else if(rotVector.y > 0 && rotVector.y >= abs(rotVector.x) && rotVector.y >= abs(rotVector.z)){
+        double t = 1 / rotVector.y;
+        i = int((t * rotVector.x + 1) * 0.5 * (planet.texture[2]->w));
+        j = int((t * rotVector.z + 1) * 0.5 * (planet.texture[2]->h));
+        SDL_Surface *tex = planet.texture[2];
+        const Uint8 *pixels = (const Uint8*)tex->pixels;
+        int p = j * tex->pitch + i * 4;
+        c1 = pixels[p];
+        c2 = pixels[p + 1];
+        c3 = pixels[p + 2];
+        c4 = pixels[p + 3];
+    }
+    //ny
+    else if(rotVector.y <= 0 && -rotVector.y >= abs(rotVector.x) && -rotVector.y >= abs(rotVector.z)){
+        double t = -1 / rotVector.y;
+        i = int((1 + t * rotVector.x) * 0.5 * (planet.texture[3]->w));
+        j = int((1 - t * rotVector.z) * 0.5 * (planet.texture[3]->h));
+        SDL_Surface *tex = planet.texture[3];
+        const Uint8 *pixels = (const Uint8*)tex->pixels;
+        int p = j * tex->pitch + i * 4;
+        c1 = pixels[p];
+        c2 = pixels[p + 1];
+        c3 = pixels[p + 2];
+        c4 = pixels[p + 3];
+    }
+    //pz
+    else if(rotVector.z > 0 && rotVector.z >= abs(rotVector.x) && rotVector.z >= abs(rotVector.y)){
+        double t = 1 / rotVector.z;
+        i = int((1 + t * rotVector.x) * 0.5 * (planet.texture[4]->w));
+        j = int((1 - t * rotVector.y) * 0.5 * (planet.texture[4]->h));
+        SDL_Surface *tex = planet.texture[4];
+        const Uint8 *pixels = (const Uint8*)tex->pixels;
+        int p = j * tex->pitch + i * 4;
+        c1 = pixels[p];
+        c2 = pixels[p + 1];
+        c3 = pixels[p + 2];
+        c4 = pixels[p + 3];
+    }
+    //nz
+    else if(rotVector.z <= 0 && -rotVector.z >= abs(rotVector.x) && -rotVector.z >= abs(rotVector.y)){
+        double t = -1 / rotVector.z;
+        i = int((1 - t * rotVector.x) * 0.5 * (planet.texture[5]->w));
+        j = int((1 - t * rotVector.y) * 0.5 * (planet.texture[5]->h));
+        SDL_Surface *tex = planet.texture[5];
+        const Uint8 *pixels = (const Uint8*)tex->pixels;
+        int p = j * tex->pitch + i * 4;
+        c1 = pixels[p];
+        c2 = pixels[p + 1];
+        c3 = pixels[p + 2];
+        c4 = pixels[p + 3];
+    }
+}
 void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns){
     int rtxheight = height;
     int rtxwidth = width;
@@ -2266,7 +2427,6 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
     vector<vector<Uint8>> Rbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
     vector<vector<Uint8>> Gbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
     vector<vector<Uint8>> Bbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
-    
     
     #pragma omp parallel for
     for(int i = rtxheight - 1;i >= 0;i--){
@@ -2334,9 +2494,19 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
             }
 
             /* RGB Calc */
-            Uint8 R = ((parti[suns[0]].c1 - parti[nearestPlanet].c1) * 0.05 + parti[nearestPlanet].c1) * I;
-            Uint8 G = ((parti[suns[0]].c2 - parti[nearestPlanet].c2) * 0.05 + parti[nearestPlanet].c2) * I;
-            Uint8 B = ((parti[suns[0]].c3 - parti[nearestPlanet].c3) * 0.05 + parti[nearestPlanet].c3) * I;
+            /* Define RGB */
+            int c1 = parti[nearestPlanet].c1;
+            int c2 = parti[nearestPlanet].c2;
+            int c3 = parti[nearestPlanet].c3;
+            int c4 = parti[nearestPlanet].c4;
+            
+            if(ss.Texture){
+                getTextureByCube(parti[nearestPlanet], Npm, c1, c2, c3, c4);
+            }
+            
+            Uint8 R = ((parti[suns[0]].c1 - c1) * 0.05 + c1) * I;
+            Uint8 G = ((parti[suns[0]].c2 - c2) * 0.05 + c2) * I;
+            Uint8 B = ((parti[suns[0]].c3 - c3) * 0.05 + c3) * I;
             
             if(RTXReflect > 1){
                 vector<RTXV> Mr(RTXReflect);
@@ -2427,9 +2597,17 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
                         }
                     }
                     
-                    Uint8 RRefSun = ((parti[suns[0]].c1 - parti[nearestPlanetRef].c1) * 0.05 + parti[nearestPlanetRef].c1) * Ir;
-                    Uint8 GRefSun = ((parti[suns[0]].c2 - parti[nearestPlanetRef].c2) * 0.05 + parti[nearestPlanetRef].c2) * Ir;
-                    Uint8 BRefSun = ((parti[suns[0]].c3 - parti[nearestPlanetRef].c3) * 0.05 + parti[nearestPlanetRef].c3) * Ir;
+                    int c1Ref = parti[nearestPlanetRef].c1;
+                    int c2Ref = parti[nearestPlanetRef].c2;
+                    int c3Ref = parti[nearestPlanetRef].c3;
+                    int c4Ref = parti[nearestPlanetRef].c4;
+                    if(ss.Texture){
+                        getTextureByCube(parti[nearestPlanetRef], NpmRef, c1Ref, c2Ref, c3Ref, c4Ref);
+                    }
+                    
+                    Uint8 RRefSun = ((parti[suns[0]].c1 - c1Ref) * 0.05 + c1Ref) * Ir;
+                    Uint8 GRefSun = ((parti[suns[0]].c2 - c2Ref) * 0.05 + c2Ref) * Ir;
+                    Uint8 BRefSun = ((parti[suns[0]].c3 - c3Ref) * 0.05 + c3Ref) * Ir;
                     
                     RR += (RRefSun - RRefPre) * WR;
                     GG += (GRefSun - GRefPre) * WR;
@@ -2456,10 +2634,21 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
 //            SDL_RenderPoint(ren, j, i);
 //        }
 //    }
-    static SDL_Texture* tex = SDL_CreateTexture(
-                                                ren, SDL_PIXELFORMAT_RGBA32,
-                                                SDL_TEXTUREACCESS_STREAMING, width, height
-                                                );
+    static SDL_Texture* tex = nullptr;
+    static int tw = 0, th = 0;
+
+    if (!tex || tw != width || th != height) {
+        if (tex) SDL_DestroyTexture(tex);
+
+        tex = SDL_CreateTexture(
+            ren, SDL_PIXELFORMAT_RGBA32,
+            SDL_TEXTUREACCESS_STREAMING, width, height
+        );
+
+        tw = width;
+        th = height;
+    }
+    
     vector<Uint8> rgb(width * height * 4);
     
     #pragma omp parallel for
@@ -2502,6 +2691,9 @@ struct rtx_metal_projection{
     int c1,c2,c3,c4;
     float r;
     float reflection = 0.5;
+    
+    float w_velocity = 2 * M_PI / 86400;
+    float rotation = 0;
 };
 struct metalcamera{
     float x,y,z;
@@ -2599,20 +2791,13 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     /* Light Path Tracing */
     vector<Uint8> Sample(rtxheight * rtxwidth);
     
-    rtx_metal_projection rtx_planet[planet.size()];
     rtx_metal_projection rtx_parti[parti.size()];
-    #pragma omp parallel for
-    for(long i = 0;i < planet.size();i++){
-        rtx_planet[i] = {   float(planet[i].x - cam.x), float(planet[i].y - cam.y), float(planet[i].z - cam.z),
-                            planet[i].c1, planet[i].c2, planet[i].c3, planet[i].c4,
-                            float(planet[i].r)
-                        };
-    }
+
     #pragma omp parallel for
     for(long i = 0;i < parti.size();i++){
         rtx_parti[i] = {    float(parti[i].x - cam.x), float(parti[i].y - cam.y), float(parti[i].z - cam.z),
                             parti[i].c1, parti[i].c2, parti[i].c3, parti[i].c4,
-                            float(parti[i].radius)
+                            float(parti[i].radius), (float)parti[i].reflection, (float)parti[i].w_velocity, (float)parti[i].rotation
                         };
     }
     metalcamera MetalCam = {
@@ -2621,11 +2806,38 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
         float(cam.fov),
         0, 0, 0
     };
+    
+    /* Texture Renderer */
+    vector<int> textureIndex(parti.size(), -1);
+    vector<Uint8> texturePixels;
+    vector<int> S(parti.size(), -1);
+    if(ss.Texture){
+        for(long i = 0;i < parti.size();i++){
+            if(parti[i].hasTexture){
+                textureIndex[i] = texturePixels.size();
+                for(int j = 0;j < 6;j++){
+                    SDL_Surface *tex = parti[i].texture[j];
+                    const Uint8 *pixels = (const Uint8*)tex->pixels;
+                    texturePixels.insert(
+                                         texturePixels.end(),
+                                         pixels,
+                                         pixels + tex->pitch * tex->h
+                                         );
+                }
+                S[i] = parti[i].texture[0]->w;
+            }
+        }
+    }
+    if(texturePixels.empty()) texturePixels.push_back(0);
+    
     id<MTLBuffer> RTXVectorLengthBuf = [device newBufferWithBytes:flat_RTXVectorLength.data() length:flat_RTXVectorLength.size()*sizeof(float) options:MTLResourceStorageModeShared];
     id<MTLBuffer> sunsBuf = [device newBufferWithBytes:suns.data() length:suns.size()*sizeof(int) options:MTLResourceStorageModeShared];
     id<MTLBuffer> partiBuf = [device newBufferWithBytes:rtx_parti length:sizeof(rtx_parti) options:MTLResourceStorageModeShared];
     id<MTLBuffer> cameraBuf = [device newBufferWithBytes:&MetalCam length:sizeof(MetalCam) options:MTLResourceStorageModeShared];
     id<MTLBuffer> metalBVHCollectorBuf = [device newBufferWithBytes:metalBVHCollector.data() length:metalBVHCollector.size()*sizeof(metalBVHNode) options:MTLResourceStorageModeShared];
+    id<MTLBuffer> textureIndexBuf = [device newBufferWithBytes:textureIndex.data() length:textureIndex.size()*sizeof(int) options:MTLResourceStorageModeShared];
+    id<MTLBuffer> textureBuf = [device newBufferWithBytes:texturePixels.data() length:texturePixels.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
+    id<MTLBuffer> SBuf = [device newBufferWithBytes:S.data() length:S.size()*sizeof(int) options:MTLResourceStorageModeShared];
     id<MTLBuffer> RBuf = [device newBufferWithLength:Sample.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
     id<MTLBuffer> GBuf = [device newBufferWithLength:Sample.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
     id<MTLBuffer> BBuf = [device newBufferWithLength:Sample.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
@@ -2646,9 +2858,12 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     int metalBVHCollectorSize = metalBVHCollector.size();
     [RTXPathEnc setBytes:&metalBVHCollectorSize length:sizeof(metalBVHCollectorSize) atIndex:9];
     [RTXPathEnc setBytes:&RTXReflect length:sizeof(RTXReflect) atIndex:10];
-    [RTXPathEnc setBuffer:RBuf offset:0 atIndex:11];
-    [RTXPathEnc setBuffer:GBuf offset:0 atIndex:12];
-    [RTXPathEnc setBuffer:BBuf offset:0 atIndex:13];
+    [RTXPathEnc setBuffer:textureIndexBuf offset:0 atIndex:11];
+    [RTXPathEnc setBuffer:textureBuf offset:0 atIndex:12];
+    [RTXPathEnc setBuffer:SBuf offset:0 atIndex:13];
+    [RTXPathEnc setBuffer:RBuf offset:0 atIndex:14];
+    [RTXPathEnc setBuffer:GBuf offset:0 atIndex:15];
+    [RTXPathEnc setBuffer:BBuf offset:0 atIndex:16];
     
     NSUInteger threadGroupSize2 = MIN(sqrt(RTXPathPSO.maxTotalThreadsPerThreadgroup), sqrt(rtxwidth * rtxheight));
     MTLSize groupSize2 = MTLSizeMake(threadGroupSize2, threadGroupSize2, 1);
@@ -2666,10 +2881,20 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     Uint8 *G = (Uint8*)GBuf.contents;
     Uint8 *B = (Uint8*)BBuf.contents;
     /* SDL Draw */
-    static SDL_Texture* tex = SDL_CreateTexture(
-                                                ren, SDL_PIXELFORMAT_RGBA32,
-                                                SDL_TEXTUREACCESS_STREAMING, width, height
-                                                );
+    static SDL_Texture* tex = nullptr;
+    static int tw = 0, th = 0;
+
+    if (!tex || tw != width || th != height) {
+        if (tex) SDL_DestroyTexture(tex);
+
+        tex = SDL_CreateTexture(
+            ren, SDL_PIXELFORMAT_RGBA32,
+            SDL_TEXTUREACCESS_STREAMING, width, height
+        );
+
+        tw = width;
+        th = height;
+    }
     vector<Uint8> rgb(width * height * 4);
     
     #pragma omp parallel for
