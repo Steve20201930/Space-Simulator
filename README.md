@@ -92,7 +92,12 @@ milkyway3 : Full Milky Way simulation, includes all stars. Includes 451,264 star
 * `texture` : Turn on and load or turn off texture rendering.
 * `texture [Value]` : For only turn on texture of certain planet.
 * `rotation` : Enable rotation compute of each planets(rad).
-* `rotation [Name] [Value]` : Change value of rotation velocity of certain planet.(Default w = 2PI/86400).
+* `rotation [Name] [Value]` : Change value of rotation velocity of certain planet.(Default w = 2PI/86400(s)).
+* `rotationT [Name] [Value]` : Change value of time of a certain planet turning a cycle.(Default T = 24(hours)).
+* `inclination [Name] [Value]` : Change value of the inclination of the certain planet.(Default for 0, there is correct inclination for all planet in the solar system if you use the default model from select mode).
+* `background` : Turn on or off background texture rendering（Available for RTX mode ONLY).
+* `follow [Name]` : Set the camera in a frame of reference of a certain planet.
+* `unfollow` : Disable follow function.
 * `in/out [Method]` : Use different method to compute, default in CPU.(Enable/Disable)
 ```bash
 [Method]
@@ -203,7 +208,12 @@ milkyway3 : 完全模拟银河系，包含所有恒星与行星。包含 451,264
 * `texture` : 开启或关闭贴图渲染（仅在RTX开启时启动）
 * `texture [Value]` : 仅开启特定星球的贴图渲染
 * `rotation` : 开启星球自转计算
-* `rotation [Name] [Value]` : 改变特定星球自转角速度(默认 w = 2PI/86400).
+* `rotation [Name] [Value]` : 改变特定星球自转角速度(默认 w = 2PI/86400（秒）).
+* * `rotationT [Name] [Value]` : 改变特定星球自转周期（默认 T=24小时）
+* `inclination [Name] [Value]` : 改变特定星球的倾斜角。
+* `background` : 关闭或打开并加载背景贴图渲染（仅在RTX模式下启用）。
+* `follow [Name]` : 将相机绑定特定星球并限制其在该星球参考系内运动。
+* `unfollow` : 停止follow模式。
 * `in/out [method]` : 使用不同方法计算,默认在CPU计算(开启/关闭)
 ```bash
 [method]
