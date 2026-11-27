@@ -38,14 +38,17 @@ struct particle{
     double radius;
     int c1,c2,c3,c4;
     bool stellar;
-    bool merged;
-    double w_velocity = 2 * M_PI / 86400;
+    
+    double T = 24; //Hours
+    double inclination = 0; //-90 < x < 90(DEG)
     double reflection = 0.5;
     
     SDL_Surface *texture[6] = {};
     bool hasTexture = false;
     
+    double w_velocity = 2 * M_PI / (T * 3600);//(RAD)
     double rotation = 0;
+    bool merged = false;
 };
 struct camera{
     double x,y,z;
@@ -132,14 +135,20 @@ struct BVHNode{
 };
 vector<BVHNode> BVHCollector;
 void RTXInitial(int rtxheight = height, int rtxwidth = width);
-void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns);
+void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, vector<int> suns);
 void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns);
 void DrawBVHDebug(SDL_Renderer* ren, const vector<BVHNode> &BVHCollector, const camera &cam, int maxDepth = 3);
 struct SysSetting{
     bool SSAA = false;
     int SSAA_multi = 2;
     bool Texture = false;
-    bool rotationable = false;
+    bool rotationable = true;
+    int follow = -1;
+    bool hasbackground = false;
+    particle background;
+    
+    bool textureChanged = true;
+    bool backgroundChanged = true;
 }ss;
 int main()
 {
@@ -153,7 +162,7 @@ int main()
     // planet.push_back({"Planet",100,0,0,2,0,0,1000,10,5,197,245,255});
     //Initial
     cam={0,0,-200,0,0,60,0,0,0};
-    SDL_Window* win=SDL_CreateWindow("Space Sim ver2.3.1",width,height,SDL_WINDOW_RESIZABLE);
+    SDL_Window* win=SDL_CreateWindow("Space Sim ver3.0",width,height,SDL_WINDOW_RESIZABLE);
     SDL_Renderer* ren=SDL_CreateRenderer(win,nullptr);
     SDL_SetWindowPosition(win,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
     SDL_SetWindowRelativeMouseMode(win, true);
@@ -517,7 +526,7 @@ int main()
             string debug_buf5="SpaceShipMode:"+to_string(SpaceShipMode);
             string debug_buf6="Shader: "+to_string(shader)+" RTX(ref:" + to_string(RTXReflect) + "): "+to_string(rtx);
             string debug_buf7="Perform: "+to_string(perform) + " GPU(METAL): "+to_string(isMetal);
-            string debug_buf8="SSAA: "+to_string(ss.SSAA) + " SSAAx"+to_string(ss.SSAA_multi) + " Texture:" + to_string(ss.Texture);
+            string debug_buf8="SSAA: "+to_string(ss.SSAA) + " SSAAx"+to_string(ss.SSAA_multi) + " Texture:" + to_string(ss.Texture) + " Rotation:"+to_string(ss.rotationable) + " Background:"+to_string(ss.hasbackground);
             if(pause==true)debug_buf1+="  [PAUSE]";
             SDL_SetRenderDrawColor(ren,255,255,255,255);
             SDL_RenderDebugText(ren,20,10,debug_buf1.c_str());
@@ -572,7 +581,7 @@ void camera_movement(camera &cam,double friction,double acceleration,bool& camer
             }
         }
     }
-    if(stand==true){
+    if(!pause && stand==true){
         cam.vx=0; cam.vy=0; cam.vz=0;
         for(int i=0;i<p.size();i++){
             if(p[i].name==standon){
@@ -582,6 +591,11 @@ void camera_movement(camera &cam,double friction,double acceleration,bool& camer
                 return;
             }
         }
+    }
+    if(!pause && ss.follow != -1){
+        cam.x += p[ss.follow].vx * dt;
+        cam.y += p[ss.follow].vy * dt;
+        cam.z += p[ss.follow].vz * dt;
     }
     if(keystate[SDL_SCANCODE_W]){
         cam.vx+=fx*acceleration;
@@ -889,6 +903,7 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
     if(n=="clear"){
         p.clear();
         SpaceShipMode=false;
+        ss.Texture = false;
         return;
     }
     if(n=="goto"){
@@ -972,16 +987,16 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
         string name;
         ssin>>name;
         if(name=="solar"||name=="solar2"||name=="solar3"){
-            p.push_back({"Sun", 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9885e30, 695700000, 255, 210, 26, 255, true});
-            p.push_back({"Mercury", 6.98179e10, 0, 0, 0, 0, 47870, 0, 0, 0, 3.3022e23, 2440000, 194, 194, 194, 255, false});
-            p.push_back({"Venus", 1.08939e11, 0, 0, 0, 0, 35020, 0, 0, 0, 4.8676e24, 6051000, 255, 236, 59, 255, false});
-            p.push_back({"Earth", 1.521e11, 0, 0, 0, 0, 29780, 0, 0, 0, 5.97237e24, 6.371e6, 28, 115, 232, 255, false});
-            p.push_back({"Mars", 2.49261e11, 0, 0, 0, 0, 24080, 0, 0, 0, 6.4169e23, 3.3895e6, 245, 91, 22, 255, false});
-            p.push_back({"Jupiter", 8.165208e11, 0, 0, 0, 0, 13070, 0, 0, 0, 1.8981e27, 6.9886e7, 255, 213, 125, 255, false});
-            p.push_back({"Saturnus", 1.353572956e12, 0, 0, 0, 0, 9690, 0, 0, 0, 5.6846e26, 5.8232e7, 219, 167, 61, 255, false});
-            p.push_back({"Uranus", 3.004419704e12, 0, 0, 0, 0, 6810, 0, 0, 0, 8.6810e25, 2.5559e7, 215, 248, 250, 255, false});
-            p.push_back({"Neptune", 4.55394649e12, 0, 0, 0, 0, 5430, 0, 0, 0, 1.0243e26, 2.4764e7, 65, 105, 225, 255, false});
-            p.push_back({"Moon", 1.51736896e11, 0, 0, 0, 0, 30802, 0, 0, 0, 7.3477e22, 1.7371e6, 194, 194, 194, 255, false});
+            p.push_back({"Sun", 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9885e30, 695700000, 255, 210, 26, 255, true, 609.15, 7.25});
+            p.push_back({"Mercury", 6.98179e10, 0, 0, 0, 0, 47870, 0, 0, 0, 3.3022e23, 2440000, 194, 194, 194, 255, false, 1407.5, 0.034});
+            p.push_back({"Venus", 1.08939e11, 0, 0, 0, 0, 35020, 0, 0, 0, 4.8676e24, 6051000, 255, 236, 59, 255, false, 5832, 2.64});
+            p.push_back({"Earth", 1.521e11, 0, 0, 0, 0, 29780, 0, 0, 0, 5.97237e24, 6.371e6, 28, 115, 232, 255, false, 23.9345, 23.44});
+            p.push_back({"Mars", 2.49261e11, 0, 0, 0, 0, 24080, 0, 0, 0, 6.4169e23, 3.3895e6, 245, 91, 22, 255, false, 24.62, 25.19});
+            p.push_back({"Jupiter", 8.165208e11, 0, 0, 0, 0, 13070, 0, 0, 0, 1.8981e27, 6.9886e7, 255, 213, 125, 255, false, 9.925, 3.13});
+            p.push_back({"Saturnus", 1.353572956e12, 0, 0, 0, 0, 9690, 0, 0, 0, 5.6846e26, 5.8232e7, 219, 167, 61, 255, false, 10.656, 26.73});
+            p.push_back({"Uranus", 3.004419704e12, 0, 0, 0, 0, 6810, 0, 0, 0, 8.6810e25, 2.5559e7, 215, 248, 250, 255, false, 17.24, 97.77});
+            p.push_back({"Neptune", 4.55394649e12, 0, 0, 0, 0, 5430, 0, 0, 0, 1.0243e26, 2.4764e7, 65, 105, 225, 255, false, 16.11, 28.32});
+            p.push_back({"Moon", 1.51736896e11, 0, 0, 0, 0, 30802, 0, 0, 0, 7.3477e22, 1.7371e6, 194, 194, 194, 255, false, 655.72, 6.68});
             if(name=="solar2"||name=="solar3"){
                 p.push_back({"MarsI",2.4925188e11,0,0,0,0,26229.2183,0,0,0,1.8e15,1.11e4,160,160,160,255,false});
                 p.push_back({"MarsII",2.4923754e11,0,0,0,0,25428.3773,0,0,0,1.48e15,6.2e3,163,163,163,255,false});
@@ -1095,7 +1110,7 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
             int c1,c2,c3,c4;
             bool stellar;
             while(file>>name>>x>>y>>z>>vx>>vy>>vz>>ax>>ay>>az>>mass>>radius>>c1>>c2>>c3>>c4>>stellar){
-                p.push_back({name,stod(x),stod(y),stod(z),vx,vy,vz,ax,ay,az,mass,radius,c1,c2,c3,c4,stellar,false});
+                p.push_back({name,stod(x),stod(y),stod(z),vx,vy,vz,ax,ay,az,mass,radius,c1,c2,c3,c4,stellar});
             }
             file.close();
         }
@@ -1184,9 +1199,10 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
         }
     }
     if(n=="texture"){
-        ss.Texture = !ss.Texture;
+        ss.textureChanged = true;
         string value;
         ssin>>value;
+        if(value == "")ss.Texture = !ss.Texture;
         if(ss.Texture && value == ""){
             for(long i = 0;i < p.size();i++){
                 if(!filesystem::exists(string(SDL_GetBasePath()) + "Texture/" + p[i].name))continue;
@@ -1220,6 +1236,10 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
                     p[i].hasTexture = true;
                 }
             }
+        }else if(!ss.Texture){
+            for(long i = 0;i < p.size();i++){
+                p[i].hasTexture = false;
+            }
         }
     }
     if(n=="rotation"){
@@ -1232,10 +1252,64 @@ void execute(vector<particle>& p,string command,bool& pause,bool& roche,bool& de
             ssin>>rv;
             for(int i = 0;i < p.size();i++){
                 if(p[i].name == value){
-                    p[i].rotation = stod(rv);
+                    p[i].w_velocity = stod(rv);
                     break;
                 }
             }
+        }
+    }
+    if(n=="rotationT"){
+        string value;
+        ssin>>value;
+        string rv;
+        ssin>>rv;
+        for(int i = 0;i < p.size();i++){
+            if(p[i].name == value){
+                p[i].T = stod(rv);
+                break;
+            }
+        }
+    }
+    if(n=="inclination"){
+        string value;
+        ssin>>value;
+        string rv;
+        ssin>>rv;
+        for(int i = 0;i < p.size();i++){
+            if(p[i].name == value){
+                p[i].inclination = stod(rv);
+                break;
+            }
+        }
+    }
+    if(n=="follow"){
+        string value;
+        ssin>>value;
+        for(int i = 0;i < p.size();i++){
+            if(p[i].name == value){
+                ss.follow = i;
+            }
+        }
+    }
+    if(n=="unfollow"){
+        ss.follow = -1;
+    }
+    if(n=="background"){
+        ss.backgroundChanged = true;
+        ss.hasbackground = !ss.hasbackground;
+        if(ss.hasbackground){
+            string eachPath[6] = {
+                string(SDL_GetBasePath()) + "Texture/Background/px.png",
+                string(SDL_GetBasePath()) + "Texture/Background/nx.png",
+                string(SDL_GetBasePath()) + "Texture/Background/py.png",
+                string(SDL_GetBasePath()) + "Texture/Background/ny.png",
+                string(SDL_GetBasePath()) + "Texture/Background/pz.png",
+                string(SDL_GetBasePath()) + "Texture/Background/nz.png",
+            };
+            for(int t = 0;t < 6;t++){
+                ss.background.texture[t] = IMG_Load(eachPath[t].c_str());
+            }
+            ss.background.hasTexture = true;
         }
     }
     if(isNumber(n)==false)return;
@@ -2305,12 +2379,15 @@ void StellarHaloDetect(const vector<particle> &parti, const vector<int> &suns, c
 }
 void getTextureByCube(const particle &planet, const RTXV &vector, int &c1, int &c2, int &c3, int &c4){
     if(planet.hasTexture == false)return;
+    double inclination = clamp(planet.inclination, -90.0, 90.0) * M_PI / 180.0;
     
     RTXV rotVector = {
-        vector.x * cos(planet.rotation) - vector.z * sin(planet.rotation),
-        vector.y,
-        vector.x * sin(planet.rotation) + vector.z * cos(planet.rotation)
+        vector.x * cos(planet.rotation) + vector.y * sin(planet.rotation) * sin(inclination) + vector.z * sin(planet.rotation) * cos(inclination),
+        vector.y * cos(inclination) - vector.z * sin(inclination),
+        -vector.x * sin(planet.rotation) + vector.y * sin(inclination) * cos(planet.rotation) + vector.z * cos(planet.rotation) * cos(inclination)
     };
+    
+    rotVector.x = -rotVector.x;
     
     int i, j;
     //px
@@ -2392,7 +2469,7 @@ void getTextureByCube(const particle &planet, const RTXV &vector, int &c1, int &
         c4 = pixels[p + 3];
     }
 }
-void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, const vector<int> &suns){
+void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector<particle> &parti, vector<int> suns){
     int rtxheight = height;
     int rtxwidth = width;
     if(ss.SSAA){
@@ -2428,6 +2505,10 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
     vector<vector<Uint8>> Gbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
     vector<vector<Uint8>> Bbuf(rtxheight, vector<Uint8>(rtxwidth, 0));
     
+    if(suns.empty()){
+        suns.push_back(0);
+    }
+    
     #pragma omp parallel for
     for(int i = rtxheight - 1;i >= 0;i--){
         for(int j = 0;j < rtxwidth;j++){
@@ -2456,7 +2537,15 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
             }
             auto it = find(suns.begin(), suns.end(), nearestPlanet);
             if(nearestPlanet == -1 || it != suns.end()){
-                StellarHaloDetect(parti, suns, RTXVector[i][j], {cam.x, cam.y, cam.z}, Rbuf[i][j], Gbuf[i][j], Bbuf[i][j]);
+                int R = 0, G = 0, B = 0, A = 0;
+                if(ss.hasbackground && nearestPlanet == -1){
+                    getTextureByCube(ss.background, RTXVector[i][j], R, G, B, A);
+                }
+                Uint8 Rh = 0, Gh = 0, Bh = 0;
+                StellarHaloDetect(parti, suns, RTXVector[i][j], {cam.x, cam.y, cam.z}, Rh, Gh, Bh);
+                Rbuf[i][j] = min(255, R + Rh);
+                Gbuf[i][j] = min(255, G + Gh);
+                Bbuf[i][j] = min(255, B + Bh);
                 continue;
             }
             /* Light Magnitude */
@@ -2500,13 +2589,18 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
             int c3 = parti[nearestPlanet].c3;
             int c4 = parti[nearestPlanet].c4;
             
+            int c1Sun = parti[suns[0]].c1;
+            int c2Sun = parti[suns[0]].c2;
+            int c3Sun = parti[suns[0]].c3;
+            int c4Sun = parti[suns[0]].c4;
+            
             if(ss.Texture){
                 getTextureByCube(parti[nearestPlanet], Npm, c1, c2, c3, c4);
             }
             
-            Uint8 R = ((parti[suns[0]].c1 - c1) * 0.05 + c1) * I;
-            Uint8 G = ((parti[suns[0]].c2 - c2) * 0.05 + c2) * I;
-            Uint8 B = ((parti[suns[0]].c3 - c3) * 0.05 + c3) * I;
+            Uint8 R = ((c1Sun - c1) * 0.05 + c1) * I;
+            Uint8 G = ((c2Sun - c2) * 0.05 + c2) * I;
+            Uint8 B = ((c3Sun - c3) * 0.05 + c3) * I;
             
             if(RTXReflect > 1){
                 vector<RTXV> Mr(RTXReflect);
@@ -2605,9 +2699,9 @@ void RTXRender(SDL_Renderer* ren, const vector<projection> &planet, const vector
                         getTextureByCube(parti[nearestPlanetRef], NpmRef, c1Ref, c2Ref, c3Ref, c4Ref);
                     }
                     
-                    Uint8 RRefSun = ((parti[suns[0]].c1 - c1Ref) * 0.05 + c1Ref) * Ir;
-                    Uint8 GRefSun = ((parti[suns[0]].c2 - c2Ref) * 0.05 + c2Ref) * Ir;
-                    Uint8 BRefSun = ((parti[suns[0]].c3 - c3Ref) * 0.05 + c3Ref) * Ir;
+                    Uint8 RRefSun = ((c1Sun - c1Ref) * 0.05 + c1Ref) * Ir;
+                    Uint8 GRefSun = ((c2Sun - c2Ref) * 0.05 + c2Ref) * Ir;
+                    Uint8 BRefSun = ((c3Sun - c3Ref) * 0.05 + c3Ref) * Ir;
                     
                     RR += (RRefSun - RRefPre) * WR;
                     GG += (GRefSun - GRefPre) * WR;
@@ -2694,6 +2788,7 @@ struct rtx_metal_projection{
     
     float w_velocity = 2 * M_PI / 86400;
     float rotation = 0;
+    float inclination = 0;
 };
 struct metalcamera{
     float x,y,z;
@@ -2797,7 +2892,7 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     for(long i = 0;i < parti.size();i++){
         rtx_parti[i] = {    float(parti[i].x - cam.x), float(parti[i].y - cam.y), float(parti[i].z - cam.z),
                             parti[i].c1, parti[i].c2, parti[i].c3, parti[i].c4,
-                            float(parti[i].radius), (float)parti[i].reflection, (float)parti[i].w_velocity, (float)parti[i].rotation
+                            float(parti[i].radius), (float)parti[i].reflection, (float)parti[i].w_velocity, (float)parti[i].rotation, (float)parti[i].inclination
                         };
     }
     metalcamera MetalCam = {
@@ -2809,38 +2904,78 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     
     /* Texture Renderer */
     vector<int> textureIndex(parti.size(), -1);
-    vector<Uint8> texturePixels;
-    vector<int> S(parti.size(), -1);
-    if(ss.Texture){
-        for(long i = 0;i < parti.size();i++){
-            if(parti[i].hasTexture){
-                textureIndex[i] = texturePixels.size();
-                for(int j = 0;j < 6;j++){
-                    SDL_Surface *tex = parti[i].texture[j];
-                    const Uint8 *pixels = (const Uint8*)tex->pixels;
-                    texturePixels.insert(
-                                         texturePixels.end(),
-                                         pixels,
-                                         pixels + tex->pitch * tex->h
-                                         );
-                }
-                S[i] = parti[i].texture[0]->w;
-            }
+    
+    /* Texture Background */
+    bool hasSky = ss.hasbackground;
+    vector<Uint8> skyTexture;
+    int skyS = 0;
+    if(ss.hasbackground){
+        for(int j = 0;j < 6;j++){
+            SDL_Surface *tex = ss.background.texture[j];
+            const Uint8 *pixels = (const Uint8*)tex->pixels;
+            skyTexture.insert(
+                              skyTexture.end(),
+                              pixels,
+                              pixels + tex->pitch * tex->h
+                              );
         }
+        skyS = ss.background.texture[0]->w;
     }
-    if(texturePixels.empty()) texturePixels.push_back(0);
+    if(skyTexture.empty())skyTexture.push_back(0);
+    rtx_metal_projection sky = {};
+    sky.rotation = ss.background.rotation;
+    sky.inclination = ss.background.inclination;
     
     id<MTLBuffer> RTXVectorLengthBuf = [device newBufferWithBytes:flat_RTXVectorLength.data() length:flat_RTXVectorLength.size()*sizeof(float) options:MTLResourceStorageModeShared];
     id<MTLBuffer> sunsBuf = [device newBufferWithBytes:suns.data() length:suns.size()*sizeof(int) options:MTLResourceStorageModeShared];
     id<MTLBuffer> partiBuf = [device newBufferWithBytes:rtx_parti length:sizeof(rtx_parti) options:MTLResourceStorageModeShared];
     id<MTLBuffer> cameraBuf = [device newBufferWithBytes:&MetalCam length:sizeof(MetalCam) options:MTLResourceStorageModeShared];
     id<MTLBuffer> metalBVHCollectorBuf = [device newBufferWithBytes:metalBVHCollector.data() length:metalBVHCollector.size()*sizeof(metalBVHNode) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> textureIndexBuf = [device newBufferWithBytes:textureIndex.data() length:textureIndex.size()*sizeof(int) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> textureBuf = [device newBufferWithBytes:texturePixels.data() length:texturePixels.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> SBuf = [device newBufferWithBytes:S.data() length:S.size()*sizeof(int) options:MTLResourceStorageModeShared];
+    
+//    id<MTLBuffer> textureIndexBuf = [device newBufferWithBytes:textureIndex.data() length:textureIndex.size()*sizeof(int) options:MTLResourceStorageModeShared];
+//    id<MTLBuffer> textureBuf = [device newBufferWithBytes:texturePixels.data() length:texturePixels.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
+//    id<MTLBuffer> SBuf = [device newBufferWithBytes:S.data() length:S.size()*sizeof(int) options:MTLResourceStorageModeShared];
+//    id<MTLBuffer> skyTextureBuf = [device newBufferWithBytes:skyTexture.data() length:skyTexture.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
+    static id<MTLBuffer> textureIndexBuf = nil;
+    static id<MTLBuffer> textureBuf = nil;
+    static id<MTLBuffer> SBuf = nil;
+    static id<MTLBuffer> skyTextureBuf = nil;
+    if(ss.textureChanged || !textureBuf){
+        vector<Uint8> texturePixels;
+        vector<int> S(parti.size(), -1);
+        if(ss.Texture){
+            for(long i = 0;i < parti.size();i++){
+                if(parti[i].hasTexture){
+                    textureIndex[i] = texturePixels.size();
+                    for(int j = 0;j < 6;j++){
+                        SDL_Surface *tex = parti[i].texture[j];
+                        const Uint8 *pixels = (const Uint8*)tex->pixels;
+                        texturePixels.insert(
+                                             texturePixels.end(),
+                                             pixels,
+                                             pixels + tex->pitch * tex->h
+                                             );
+                    }
+                    S[i] = parti[i].texture[0]->w;
+                }
+            }
+        }
+        if(texturePixels.empty()) texturePixels.push_back(0);
+        
+        textureIndexBuf = [device newBufferWithBytes:textureIndex.data() length:textureIndex.size()*sizeof(int) options:MTLResourceStorageModeShared];
+        textureBuf = [device newBufferWithBytes:texturePixels.data() length:texturePixels.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
+        SBuf = [device newBufferWithBytes:S.data() length:S.size()*sizeof(int) options:MTLResourceStorageModeShared];
+        ss.textureChanged = false;
+    }
+    if(ss.backgroundChanged || !skyTextureBuf){
+        skyTextureBuf = [device newBufferWithBytes:skyTexture.data() length:skyTexture.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
+        ss.backgroundChanged = false;
+    }
+
     id<MTLBuffer> RBuf = [device newBufferWithLength:Sample.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
     id<MTLBuffer> GBuf = [device newBufferWithLength:Sample.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
     id<MTLBuffer> BBuf = [device newBufferWithLength:Sample.size()*sizeof(Uint8) options:MTLResourceStorageModeShared];
+    
     
     id<MTLComputeCommandEncoder> RTXPathEnc = [cmdBuf computeCommandEncoder];
     [RTXPathEnc setComputePipelineState:RTXPathPSO];
@@ -2861,9 +2996,13 @@ void RTXRenderMetal(SDL_Renderer* ren, const vector<projection> &planet, const v
     [RTXPathEnc setBuffer:textureIndexBuf offset:0 atIndex:11];
     [RTXPathEnc setBuffer:textureBuf offset:0 atIndex:12];
     [RTXPathEnc setBuffer:SBuf offset:0 atIndex:13];
-    [RTXPathEnc setBuffer:RBuf offset:0 atIndex:14];
-    [RTXPathEnc setBuffer:GBuf offset:0 atIndex:15];
-    [RTXPathEnc setBuffer:BBuf offset:0 atIndex:16];
+    [RTXPathEnc setBytes:&hasSky length:sizeof(hasSky) atIndex:14];
+    [RTXPathEnc setBuffer:skyTextureBuf offset:0 atIndex:15];
+    [RTXPathEnc setBytes:&skyS length:sizeof(skyS) atIndex:16];
+    [RTXPathEnc setBytes:&sky length:sizeof(sky) atIndex:17];
+    [RTXPathEnc setBuffer:RBuf offset:0 atIndex:18];
+    [RTXPathEnc setBuffer:GBuf offset:0 atIndex:19];
+    [RTXPathEnc setBuffer:BBuf offset:0 atIndex:20];
     
     NSUInteger threadGroupSize2 = MIN(sqrt(RTXPathPSO.maxTotalThreadsPerThreadgroup), sqrt(rtxwidth * rtxheight));
     MTLSize groupSize2 = MTLSizeMake(threadGroupSize2, threadGroupSize2, 1);
