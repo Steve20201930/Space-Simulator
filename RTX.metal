@@ -22,6 +22,7 @@ struct projection{
     
     float w_velocity = 2 * 3.1415926 / 86400;
     float rotation = 0;
+    float inclination = 0;
 };
 struct camera{
     float x,y,z;
@@ -246,12 +247,15 @@ void StellarHaloDetect(device const projection *parti, device const int *suns, l
 }
 void getTextureByCube(device const projection &planet, device const uint8_t *texture, int textureID, int S, const RTXV vector, thread int &c1, thread int &c2, thread int &c3, thread int &c4){
     if(textureID < 0)return;
+    float inclination = clamp(planet.inclination, -90.0, 90.0) * 3.1415926 / 180.0;
     
     RTXV rotVector = {
-        vector.x * cos(planet.rotation) - vector.z * sin(planet.rotation),
-        vector.y,
-        vector.x * sin(planet.rotation) + vector.z * cos(planet.rotation)
+        vector.x * cos(planet.rotation) + vector.y * sin(planet.rotation) * sin(inclination) + vector.z * sin(planet.rotation) * cos(inclination),
+        vector.y * cos(inclination) - vector.z * sin(inclination),
+        -vector.x * sin(planet.rotation) + vector.y * sin(inclination) * cos(planet.rotation) + vector.z * cos(planet.rotation) * cos(inclination)
     };
+    
+    rotVector.x = -rotVector.x;
     
     int i, j, face;
     //px
@@ -332,6 +336,12 @@ kernel void RTXPath(
                     device const uint8_t *texture,
                     device const int *S,
                     
+                    device const bool *hasSky,
+                    device const uint8_t *skyTexture,
+                    device const int *skyS,
+                    
+                    device const projection *sky,
+                    
                     device uint8_t *R,
                     device uint8_t *G,
                     device uint8_t *B,
@@ -354,13 +364,18 @@ kernel void RTXPath(
         }
     }
     if(nearestPlanet == -1 || isStellar){
+        int RR = 0, RG = 0, RB = 0, RA = 0;
+        if(*hasSky && nearestPlanet == -1){
+            getTextureByCube(*sky, skyTexture, 0, *skyS, RTXVector[index], RR, RG, RB, RA);
+        }
         uint8_t SR = 0, SG = 0, SB = 0;
         StellarHaloDetect(parti, suns, *suns_size, RTXVector[index], {cam->x, cam->y, cam->z}, SR, SG, SB);
-        R[index] = SR;
-        G[index] = SG;
-        B[index] = SB;
+        R[index] = min(255, RR + SR);
+        G[index] = min(255, RG + SG);
+        B[index] = min(255, RB + SB);
         return ;
     }
+
     /* Light Magnitude & Shadow Calc*/
     RTXV Npm = {
         (M.x - parti[nearestPlanet].x)/parti[nearestPlanet].r,
